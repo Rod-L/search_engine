@@ -1,0 +1,22 @@
+{
+  "config": {
+    "max_responses": 5,
+    "name": "SkillboxSearchEngine",
+    "version": "0.1"
+  },
+  "files": [
+	"Annotations/12 Angry men.txt",
+	"Annotations/Fight Club.txt",
+	"Annotations/Forrest Gump.txt",
+	"Annotations/Il buono, il brutto, il cattivo.txt",
+	"Annotations/Inception.txt",
+	"Annotations/Pulp Fiction.txt",
+	"Annotations/Schindler's List.txt",
+	"Annotations/The Dark Knight.txt",
+	"Annotations/The Godfather part II.txt",
+	"Annotations/The Godfather.txt",
+	"Annotations/The Lord of the Rings The Fellowship of the Ring.txt",
+	"Annotations/The Lord of the Rings The Return of the King.txt",
+	"Annotations/The Shawshank Redemption.txt"
+  ]
+}

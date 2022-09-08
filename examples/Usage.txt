@@ -1,0 +1,4 @@
+1. Put content of example folder into executable folder.
+2. Launch 'searh_engine.exe'.
+3. Execute 'ProcessRequests' console command.
+4. Inspect generated 'answers.json' file.
