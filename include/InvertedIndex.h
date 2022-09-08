@@ -64,6 +64,8 @@ public:
     */
     std::vector<Entry> get_word_count(const std::string& word);
 
+    static std::vector<std::string> split_by_non_letters(std::string& word, int min_part_size = 2);
+
 private:
     std::mutex docs_access;
     std::vector<std::string> docs;

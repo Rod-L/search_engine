@@ -111,5 +111,39 @@ void InvertedIndex::count_word(std::string &word, size_t doc_id) {
 template<typename StreamT>
 void InvertedIndex::index_doc(size_t doc_id, StreamT& stream) {
     std::string word;
-    while (stream >> word) count_word(word, doc_id);
+    while (stream >> word) {
+        count_word(word, doc_id);
+        auto parts = InvertedIndex::split_by_non_letters(word);
+        if (!parts.empty() && parts[0] != word) {
+            for (auto& part : parts) count_word(part, doc_id);
+        }
+    }
 }
+
+std::vector<std::string> InvertedIndex::split_by_non_letters(std::string& word, int min_part_size) {
+    auto is_letter = [](char v){
+        return v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z';
+    };
+
+    std::vector<std::string> result;
+
+    int start = -1;
+    int word_size = static_cast<int>(word.size());
+    for (int i = 0; i < word_size; ++i) {
+        char symbol = word[i];
+
+        if (is_letter(symbol)) {
+            if (start < 0) start = i;
+            continue;
+        }
+
+        int part_size = i - start;
+        if (start >= 0 && part_size >= min_part_size) result.push_back(word.substr(start, part_size));
+        start = i + 1;
+    }
+
+    int part_size = word_size - start;
+    if (part_size >= min_part_size) result.push_back(word.substr(start, part_size));
+
+    return result;
+};
