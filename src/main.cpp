@@ -19,7 +19,6 @@ void reload_config(std::string& filepath) {
     if (converter.reload_config_file(filepath)) {
         auto docs = converter.get_text_documents();
         if (!docs.empty()) server.update_document_base(docs);
-        std::cout << "Config reloaded. Database contains " << docs.size() << " documents." << std::endl;
     }
 }
 
@@ -45,6 +44,7 @@ int main() {
 
         } else if (command == "ProcessRequestsFrom") {
             std::string filepath;
+            std::cin >> std::ws;
             std::getline(std::cin, filepath);
             process_requests(filepath);
 
@@ -54,13 +54,15 @@ int main() {
 
         } else if (command == "ReloadConfigFrom") {
             std::string filepath;
+            std::cin >> std::ws;
             std::getline(std::cin, filepath);
             reload_config(filepath);
 
         } else if (command == "SaveConfigTo") {
             std::string filepath;
+            std::cin >> std::ws;
             std::getline(std::cin, filepath);
-            converter.save_config_file(filepath);
+            if (!filepath.empty()) converter.save_config_file(filepath);
 
         } else if (command == "Help") {
             std::cout << help_str;

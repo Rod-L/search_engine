@@ -33,6 +33,7 @@ bool ConverterJSON::load_config_file(std::string& filepath) {
 
     if (config_json_valid(config)) {
         load_config_json(config);
+        std::cout << "Config loaded from '" << filepath << "'. Database contains " << files.size() << " documents." << std::endl;
         return true;
     }
 
@@ -70,8 +71,7 @@ ConverterJSON::ConverterJSON(std::string config_file): config_filepath(config_fi
     new_config.close();
 
     std::cout<< "Executable directory does not contain valid 'config.json' file.\n"
-                "Template file have been created.\n"
-                "Fill 'files' section of 'config.json' and run 'ReloadConfig' command." << std::endl;
+                "Template file have been created." << std::endl;
 
 }
 
@@ -100,6 +100,7 @@ void ConverterJSON::save_config_file(std::string& filepath) const {
     int IndentLevel = 2;
     file << config.dump(IndentLevel);
     file.close();
+    std::cout << "Current configuration saved to: " << filepath << std::endl;
 }
 
 json ConverterJSON::default_config() {
@@ -142,6 +143,7 @@ std::vector<std::string> ConverterJSON::get_requests(std::string& filepath) {
     }
 
     for (auto& request : requests["requests"]) result.push_back(request);
+    std::cout << "Got " << result.size() << " requests from '" << filepath << "'." << std::endl;
     return result;
 }
 

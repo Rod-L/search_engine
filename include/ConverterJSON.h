@@ -29,12 +29,12 @@ public:
     /**
     * @return list of file names from 'files' section of last loaded 'config.json'
     */
-    [[nodiscard]] const std::vector<std::string>& get_text_documents() const;
+    const std::vector<std::string>& get_text_documents() const;
 
     /**
     * @return max amount of responses for one request ('max_responses' field from last loaded 'config.json')
     */
-    [[nodiscard]] int get_responses_limit() const;
+    int get_responses_limit() const;
 
     /**
     * @param filepath path to file to load requests from, if empty string passed, 'requests.json' will be used
@@ -64,7 +64,7 @@ private:
     /** Loads configuration from file, if one exist and fits 'config.json' format */
     bool load_config_file(std::string& filepath);
 
-    [[nodiscard]] nlohmann::json prepare_responses_list(std::vector<RelativeIndex> list) const;
+    nlohmann::json prepare_responses_list(std::vector<RelativeIndex> list) const;
 
     /**
     * Generates and returns default config.
