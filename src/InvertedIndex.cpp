@@ -22,6 +22,7 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
     freq_dictionary.clear();
 
     std::vector<std::thread> threads;
+    threads.reserve(input_docs.size());
 
     bool(::InvertedIndex::*func)(std::string);
     func = &InvertedIndex::add_document;
@@ -38,6 +39,7 @@ void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts
     freq_dictionary.clear();
 
     std::vector<std::thread> threads;
+    threads.reserve(input_texts.size());
 
     bool(::InvertedIndex::*func)(std::string, std::string);
     func = &InvertedIndex::add_document;
