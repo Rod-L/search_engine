@@ -6,8 +6,23 @@ bool ConverterJSON::config_json_valid(json& config) {
     return config.contains("files") && config.contains("config") && config["config"].contains("max_responses");
 }
 
+bool ConverterJSON::protected_parse_json(std::ifstream& file, json& acceptor, std::string& filepath) {
+    try {
+        acceptor = json::parse(file);
+    } catch(json::exception& exc) {
+        std::cerr << "Error while parsing '" << filepath << "':" << std::endl;
+        std::cerr << exc.what() << std::endl;
+        return false;
+    } catch (...) {
+        std::cerr << "Unknown exception while parsing '" << filepath << "'." << std::endl;
+        return false;
+    }
+    return true;
+}
+
 void ConverterJSON::load_config_json(json& config) {
     files.clear();
+    files.reserve(config["files"].size());
     for (auto& filename : config["files"]) {
         files.push_back(filename);
     }
@@ -22,18 +37,23 @@ void ConverterJSON::load_config_json(json& config) {
 
 bool ConverterJSON::load_config_file(std::string& filepath) {
     std::ifstream file(config_filepath);
-
     if (!file.is_open()) {
         std::cout << "Could not open '" << filepath << "' config file." << std::endl;
         return false;
     }
-
-    auto config = json::parse(file);
+    bool loaded = load_config_file(file, filepath);
     file.close();
+    return loaded;
+}
+
+bool ConverterJSON::load_config_file(std::ifstream& file, std::string& filepath) {
+    json config;
+    bool parsed = ConverterJSON::protected_parse_json(file, config, filepath);
+    if (!parsed) return false;
 
     if (config_json_valid(config)) {
         load_config_json(config);
-        std::cout << "Config loaded from '" << filepath << "'. Database contains " << files.size() << " documents." << std::endl;
+        std::cout << "Config loaded from '" << filepath << "', " << files.size() << " documents listed." << std::endl;
         return true;
     }
 
@@ -54,7 +74,15 @@ ConverterJSON::ConverterJSON(std::string config_file): config_filepath(config_fi
         requests_file.close();
     }
 
-    if (load_config_file(config_file)) return;
+    std::ifstream file(config_filepath);
+    if (file.is_open()) {
+        bool loaded = load_config_file(file, config_filepath);
+        file.close();
+        if (!loaded) {
+            std::cout << "'" << config_filepath << "' is invalid, update and reload configuration file." << std::endl;
+        }
+        return;
+    }
 
     std::ofstream new_config(config_filepath);
     if (!new_config.is_open()) {
@@ -135,8 +163,11 @@ std::vector<std::string> ConverterJSON::get_requests(std::string& filepath) {
         return result;
     }
 
-    auto requests = json::parse(file);
+    json requests;
+    bool parsed = ConverterJSON::protected_parse_json(file, requests, filepath);
     file.close();
+    if (!parsed) return result;
+
     if (!requests.contains("requests")) {
         std::cerr << filepath << "is invalid: 'requests' array have not been found." << std::endl;
         return result;

@@ -58,11 +58,24 @@ private:
     /** @return true if passed json fits 'config.json' format */
     static bool config_json_valid(nlohmann::json& config);
 
+    /**
+    * Attempts to parse file as json object, errors are written to std::cerr stream
+    * @return true if passed file was successfully parsed as json object */
+    static bool protected_parse_json(std::ifstream& file, nlohmann::json& acceptor, std::string& filepath);
+
     /** Loads configuration from json object */
     void load_config_json(nlohmann::json& config);
 
-    /** Loads configuration from file, if one exist and fits 'config.json' format */
+    /** Loads configuration by filepath, if one exist and fits 'config.json' format */
     bool load_config_file(std::string& filepath);
+
+    /**
+    * Loads configuration from file, if one fits 'config.json' format
+    * @param file - valid input file stream, is_open check is not performed
+    * @param filepath - path to file being loaded, used for status/error messages
+    * @return true, if config file was loaded successfully
+    * */
+    bool load_config_file(std::ifstream& file, std::string& filepath);
 
     nlohmann::json prepare_responses_list(std::vector<RelativeIndex> list) const;
 

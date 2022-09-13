@@ -72,6 +72,13 @@ TEST_CASE("InvertedIndex_MissingWord") {
     TestInvertedIndexFunctionality(docs, requests, expected);
 }
 
+TEST_CASE("InvertedIndex_SplitWords_non_letters") {
+    std::string word = "*****";
+    auto results = InvertedIndex::split_by_non_letters(word, 2);
+
+    REQUIRE(results.size() == 0);
+}
+
 TEST_CASE("InvertedIndex_SplitWords_0") {
     std::string word = "test";
     auto results = InvertedIndex::split_by_non_letters(word, 2);

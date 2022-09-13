@@ -8,11 +8,26 @@ SearchServer server;
 
 std::string help_str =
         "Exit - exit the program;\n"
+        "\n"
         "ProcessRequests - process 'requests.json' file in executable directory, results will be stored in 'answers.json' in executable directory;\n"
+        "\n"
         "ProcessRequestsFrom - process requests from file by path (taken as parameter), results will be stored in 'answers.json' in executable directory;\n"
+        "Examples:\n"
+        "ProcessRequestsFrom ../folder_name/filename.json\n"
+        "ProcessRequestsFrom C:/folder_name/filename.json\n"
+        "\n"
         "ReloadConfig - reload last loaded 'config.json';\n"
+        "\n"
         "ReloadConfigFrom - reload config data from file by path (taken as parameter);\n"
+        "Examples:\n"
+        "ReloadConfigFrom filename.json\n"
+        "ReloadConfigFrom C:/filename.json\n"
+        "\n"
         "SaveConfigTo - saves current config into file by path (taken as parameter);\n"
+        "Examples:\n"
+        "SaveConfigTo filename.json\n"
+        "SaveConfigTo C:/filename.json\n"
+        "\n"
         "Help - show this list.\n";
 
 void reload_config(std::string& filepath) {

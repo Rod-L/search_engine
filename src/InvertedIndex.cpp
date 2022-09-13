@@ -33,6 +33,7 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
     for (auto& thread : threads) {
         if (thread.joinable()) thread.join();
     }
+    std::cout << "Database updated, documents loaded: " << docs.size() << std::endl;
 }
 
 void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
@@ -50,12 +51,13 @@ void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts
     for (auto& thread : threads) {
         if (thread.joinable()) thread.join();
     }
+    std::cout << "Database updated, texts loaded: " << docs.size() << std::endl;
 }
 
 bool InvertedIndex::add_document(std::string filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
-        std::cerr << "AddDocument failed: could not open file '" << filename << "'." << std::endl;
+        std::cerr << "add_document failed: could not open file '" << filename << "'." << std::endl;
         return false;
     }
 
