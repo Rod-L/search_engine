@@ -1,9 +1,16 @@
 #include <catch2/catch_test_macros.hpp>
 #include "InvertedIndex.h"
 
+bool have_match(const Entry& value, std::vector<Entry>& entries) {
+    for (auto& entry : entries) {
+        if (entry == value) return true;
+    }
+    return false;
+}
+
 void TestInvertedIndexFunctionality(
-        const std::vector<std::string> &docs,
-        const std::vector<std::string> &requests,
+        const std::vector<std::string>& docs,
+        const std::vector<std::string>& requests,
         const std::vector<std::vector<Entry>>& expected) {
 
     std::vector<std::vector<Entry>> result;
@@ -14,6 +21,19 @@ void TestInvertedIndexFunctionality(
         std::vector<Entry> word_count = idx.get_word_count(request);
         result.push_back(word_count);
     }
+
+    REQUIRE(result.size() == expected.size());
+
+    for (int i = 0; i < expected.size(); ++i) {
+        auto& exp = expected[i];
+        auto& res = result[i];
+        REQUIRE(exp.size() == res.size()); // Amount of answers is equal for each requests
+
+        for (auto& exp_entry : exp) {
+            REQUIRE(have_match(exp_entry, res));
+        }
+    }
+
     REQUIRE(result == expected);
 }
 

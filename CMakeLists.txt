@@ -7,7 +7,7 @@ add_executable(${PROJECT_NAME}
         src/main.cpp
         src/ConverterJSON.cpp
         src/InvertedIndex.cpp
-        src/SearchEngine.cpp include/RelativeIndex.h)
+        src/SearchEngine.cpp)
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 

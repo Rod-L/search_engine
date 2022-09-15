@@ -14,6 +14,13 @@ public:
     explicit ConverterJSON(std::string config_file = "config.json");
 
     /**
+    * Checks whether file is supported by search engine or not. Sends status info to std::cout
+    * @param filepath - path to file for check.
+    * @return true if file supported by search engine
+    */
+    static bool check_json_file(std::string& filepath);
+
+    /**
     * Loads configuration from file, if one exist and fits 'config.json' format
     * @param filepath - path to file to load config from. If empty string passed, file from 'config_filepath' object field will be loaded.
     * @return true if file was loaded successfully.
@@ -54,6 +61,9 @@ private:
     std::string config_filepath;
     /** Contains text document names loaded from config file */
     std::vector<std::string> files;
+
+    /** @return true if passed json fits 'requests.json' format */
+    static bool requests_json_valid(nlohmann::json& requests);
 
     /** @return true if passed json fits 'config.json' format */
     static bool config_json_valid(nlohmann::json& config);

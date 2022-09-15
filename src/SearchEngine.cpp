@@ -31,15 +31,28 @@ std::vector<RelativeIndex> SearchServer::process_query(std::vector<std::string>&
 
     // calculate relative ranks
     std::vector<RelativeIndex> result;
-    for (auto& pair : docsTotalRank) result.emplace_back(pair.first, static_cast<float>(pair.second) / static_cast<float>(max_rank));
+    result.reserve(docsTotalRank.size());
+    for (auto& pair : docsTotalRank) {
+        result.emplace_back(pair.first, static_cast<float>(pair.second) / static_cast<float>(max_rank));
+    }
 
-    // sort result
+    // sort result by rank
     for (int i = 0; i < result.size(); ++i) {
         auto max = i;
         for (int pos = i; pos < result.size(); ++pos) {
             if (result[pos].rank > result[max].rank) max = pos;
         }
         if (max != i) std::swap(result[i], result[max]);
+    }
+
+    // sort result by doc_id inside ranks
+    for (int i = 0; i < result.size(); ++i) {
+        auto min = i;
+        auto rank = result[i].rank;
+        for (int pos = i; pos < result.size() && result[pos].rank == rank; ++pos) {
+            if (result[pos].doc_id < result[min].doc_id) min = pos;
+        }
+        if (min != i) std::swap(result[i], result[min]);
     }
 
     if (responses_limit > 0 && responses_limit < result.size()) result.resize(responses_limit);

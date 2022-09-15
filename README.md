@@ -10,7 +10,7 @@ How to:
 
 *'requests.json' and 'config.json' templates will be created in the executable directory on first startup.*
 
-1. Build project and launch 'search_engine.exe'.
+1. Build project and launch search_engine executable.
 2. Find 'config.json' file in the executable directory and fill its 'files' section with absolute or relative paths to files you want to present in database for future search.
 3. In 'search_engine' console use 'ReloadConfig' command to reindex files.
 4. Find 'requests.json' file in the executable directory and fill its 'requests' section with arbitrary requests according to template.

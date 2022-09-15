@@ -2,8 +2,42 @@
 
 using json = nlohmann::json;
 
+bool ConverterJSON::check_json_file(std::string& filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cout << "Cannot open '" << filepath << "'." << std::endl;
+        return false;
+    }
+
+    json content;
+    bool parsed = ConverterJSON::protected_parse_json(file, content, filepath);
+    file.close();
+
+    if (!parsed) {
+        std::cout << "Could not parse '" << filepath << "' as json object." << std::endl;
+        return false;
+    }
+
+    if (ConverterJSON::config_json_valid(content)) {
+        std::cout << "'" << filepath << "' is valid configuration file for search engine." << std::endl;
+        return true;
+    }
+
+    if (ConverterJSON::requests_json_valid(content)) {
+        std::cout << "'" << filepath << "' is valid requests file for search engine." << std::endl;
+        return true;
+    }
+
+    std::cout << "'" << filepath << "' is valid json file, but does not fit any format supported by search engine." << std::endl;
+    return false;
+}
+
 bool ConverterJSON::config_json_valid(json& config) {
-    return config.contains("files") && config.contains("config") && config["config"].contains("max_responses");
+    return config.contains("files") && config["files"].is_array() && config.contains("config") && config["config"].contains("max_responses");
+}
+
+bool ConverterJSON::requests_json_valid(json& requests) {
+    return requests.contains("requests") && requests["requests"].is_array();
 }
 
 bool ConverterJSON::protected_parse_json(std::ifstream& file, json& acceptor, std::string& filepath) {

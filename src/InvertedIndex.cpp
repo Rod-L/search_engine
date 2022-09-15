@@ -20,6 +20,7 @@ InvertedIndex::InvertedIndex(const InvertedIndex& other) {
 
 void InvertedIndex::update_document_base(const std::vector<std::string>& input_docs) {
     freq_dictionary.clear();
+    docs.clear();
 
     std::vector<std::thread> threads;
     threads.reserve(input_docs.size());
@@ -83,6 +84,7 @@ std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
 
     if (entries == freq_dictionary.end()) return result;
 
+    result.reserve(entries->second.index.size());
     for (auto& pair : entries->second.index) result.push_back(pair.second);
 
     return result;
