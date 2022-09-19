@@ -48,7 +48,7 @@ public:
     * @param filename document filename
     * @return true if file processed successfully
     */
-    bool add_document(std::string filename);
+    bool add_document(size_t doc_id, std::string filename);
 
     /**
     * Add and index document
@@ -56,7 +56,7 @@ public:
     * @param text content of the document
     * @return true if text processed successfully
     */
-    bool add_document(std::string filename, std::string text);
+    bool add_document(size_t doc_id, std::string filename, std::string text);
 
     /**
     * @param word - word to look for in database

@@ -21,14 +21,17 @@ InvertedIndex::InvertedIndex(const InvertedIndex& other) {
 void InvertedIndex::update_document_base(const std::vector<std::string>& input_docs) {
     freq_dictionary.clear();
     docs.clear();
+    docs.reserve(input_docs.size());
 
     std::vector<std::thread> threads;
     threads.reserve(input_docs.size());
 
-    bool(::InvertedIndex::*func)(std::string);
+    bool(::InvertedIndex::*func)(size_t, std::string);
     func = &InvertedIndex::add_document;
-    for (auto& doc : input_docs) {
-        threads.emplace_back(func, this, doc);
+    for (size_t doc_id = 0; doc_id < input_docs.size(); ++doc_id) {
+        auto& doc = input_docs[doc_id];
+        docs.push_back(doc);
+        threads.emplace_back(func, this, doc_id, doc);
     }
 
     for (auto& thread : threads) {
@@ -39,14 +42,18 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
 
 void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
     freq_dictionary.clear();
+    docs.clear();
+    docs.reserve(input_texts.size());
 
     std::vector<std::thread> threads;
     threads.reserve(input_texts.size());
 
-    bool(::InvertedIndex::*func)(std::string, std::string);
+    bool(::InvertedIndex::*func)(size_t, std::string, std::string);
     func = &InvertedIndex::add_document;
     for (int i = 0; i < input_texts.size(); ++i) {
-        threads.emplace_back(func, this, std::to_string(i), input_texts[i]);
+        auto doc = std::to_string(i);
+        docs.push_back(doc);
+        threads.emplace_back(func, this, static_cast<size_t>(i), doc, input_texts[i]);
     }
 
     for (auto& thread : threads) {
@@ -55,26 +62,21 @@ void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts
     std::cout << "Database updated, texts loaded: " << docs.size() << std::endl;
 }
 
-bool InvertedIndex::add_document(std::string filename) {
+bool InvertedIndex::add_document(size_t doc_id, std::string filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         std::cerr << "add_document failed: could not open file '" << filename << "'." << std::endl;
         return false;
     }
 
-    docs_access.lock();
-    docs.push_back(filename);
-    docs_access.unlock();
-    index_doc(docs.size() - 1, file);
+    index_doc(doc_id, file);
+    file.close();
     return true;
 }
 
-bool InvertedIndex::add_document(std::string filename, std::string text) {
+bool InvertedIndex::add_document(size_t doc_id, std::string filename, std::string text) {
     std::stringstream content(text);
-    docs_access.lock();
-    docs.push_back(filename);
-    docs_access.unlock();
-    index_doc(docs.size() - 1, content);
+    index_doc(doc_id, content);
     return true;
 }
 

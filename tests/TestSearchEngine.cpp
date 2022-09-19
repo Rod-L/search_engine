@@ -8,17 +8,17 @@ void FillDB(InvertedIndex& indexer) {
 
     doc = "Test doc 1.txt";
     content = "Word1 Word1 Word1 Word1 Word2 Word3";
-    success = indexer.add_document(doc, content);
+    success = indexer.add_document(0, doc, content);
     REQUIRE(success == true);
 
     doc = "Test doc 2.txt";
     content = "Word1 Word2 Word4";
-    success = indexer.add_document(doc, content);
+    success = indexer.add_document(1, doc, content);
     REQUIRE(success == true);
 
     doc = "Test doc 3.txt";
     content = "Word1 Word1 Word2 Word4";
-    success = indexer.add_document(doc, content);
+    success = indexer.add_document(2, doc, content);
     REQUIRE(success == true);
 }
 
