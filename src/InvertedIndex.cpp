@@ -107,7 +107,7 @@ void InvertedIndex::count_word(std::string &word, size_t doc_id) {
     auto& entries = word_index->index;
     auto pair = entries.find(doc_id);
     if (pair == entries.end()) {
-        entries[doc_id] = Entry{.doc_id = (size_t)doc_id, .count = 1};
+        entries[doc_id] = Entry{static_cast<size_t>(doc_id), 1};
     } else {
         pair->second.count += 1;
     }
