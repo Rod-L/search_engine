@@ -48,53 +48,6 @@ void TestInvertedIndexFunctionality(
     }
 }
 
-TEST_CASE("InvertedIndex_TestBigFile") {
-    const std::vector<std::string> docs = {
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt",
-            "../Tolkien John. The Hobbit.txt"
-    };
-    const std::vector<std::string> requests = {"Hobbit"};
-    const std::vector<std::vector<Entry>> expected = {
-            {{0, 9},{1, 9},{2, 9},{3, 9},{4, 9},{5, 9},{6, 9},{7, 9},{8, 9},{9, 9}}
-    };
-
-    std::vector<std::vector<Entry>> result;
-    InvertedIndex idx;
-    idx.update_document_base(docs);
-
-    for(auto& request : requests) {
-        std::vector<Entry> word_count = idx.get_word_count(request);
-        result.push_back(word_count);
-    }
-
-    REQUIRE(result.size() == expected.size());
-
-    for (int i = 0; i < expected.size(); ++i) {
-        auto& exp = expected[i];
-        auto& res = result[i];
-        REQUIRE(exp.size() == res.size()); // Amount of answers is equal for each requests
-
-        for (auto& exp_entry : exp) {
-            bool success = have_match(exp_entry, res);
-            if (!success) {
-                std::cout << "Expected:" << std::endl;
-                display_entry_vector(exp);
-                std::cout << "Got: " << std::endl;
-                display_entry_vector(res);
-            }
-            REQUIRE(success);
-        }
-    }
-}
-
 TEST_CASE("InvertedIndex_TestBasic") {
     const std::vector<std::string> docs = {
             "london is the capital of great britain",
@@ -113,27 +66,25 @@ TEST_CASE("InvertedIndex_TestBasic") {
 }
 
 TEST_CASE("InvertedIndex_TestBasic2") {
-    for (int i = 0; i < 1000; ++i) {
-        const std::vector<std::string> docs = {
-                "milk milk milk milk water water water",
-                "milk water water",
-                "milk milk milk milk milk water water water water water",
-                "americano cappuccino"
-        };
-        const std::vector<std::string> requests = {"milk", "water", "cappuccino"};
-        const std::vector<std::vector<Entry>> expected = {
-                {
-                        {0, 4}, {1, 1}, {2, 5}
-                },
-                {
-                        {0, 3}, {1, 2}, {2, 5}
-                },
-                {
-                        {3, 1}
-                }
-        };
-        TestInvertedIndexFunctionality(docs, requests, expected);
-    }
+    const std::vector<std::string> docs = {
+            "milk milk milk milk water water water",
+            "milk water water",
+            "milk milk milk milk milk water water water water water",
+            "americano cappuccino"
+    };
+    const std::vector<std::string> requests = {"milk", "water", "cappuccino"};
+    const std::vector<std::vector<Entry>> expected = {
+            {
+                    {0, 4}, {1, 1}, {2, 5}
+            },
+            {
+                    {0, 3}, {1, 2}, {2, 5}
+            },
+            {
+                    {3, 1}
+            }
+    };
+    TestInvertedIndexFunctionality(docs, requests, expected);
 }
 
 TEST_CASE("InvertedIndex_MissingWord") {

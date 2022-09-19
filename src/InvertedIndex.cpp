@@ -26,18 +26,29 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
     std::vector<std::thread> threads;
     threads.reserve(input_docs.size());
 
+    auto file_openable = [](const std::string& filename){
+        std::ifstream file(filename);
+        bool success = file.is_open();
+        if (success) file.close();
+        return success;
+    };
+
+    int loaded_count = 0;
     bool(::InvertedIndex::*func)(size_t, std::string);
     func = &InvertedIndex::add_document;
     for (size_t doc_id = 0; doc_id < input_docs.size(); ++doc_id) {
         auto& doc = input_docs[doc_id];
         docs.push_back(doc);
-        threads.emplace_back(func, this, doc_id, doc);
+        if (file_openable(doc)) {
+            threads.emplace_back(func, this, doc_id, doc);
+            ++loaded_count;
+        }
     }
 
     for (auto& thread : threads) {
         if (thread.joinable()) thread.join();
     }
-    std::cout << "Database updated, documents loaded: " << docs.size() << std::endl;
+    std::cout << "Database updated, documents loaded: " << loaded_count << std::endl;
 }
 
 void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
@@ -64,10 +75,7 @@ void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts
 
 bool InvertedIndex::add_document(size_t doc_id, std::string filename) {
     std::ifstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "add_document failed: could not open file '" << filename << "'." << std::endl;
-        return false;
-    }
+    if (!file.is_open()) return false;
 
     index_doc(doc_id, file);
     file.close();
