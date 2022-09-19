@@ -91,27 +91,19 @@ std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
 }
 
 void InvertedIndex::count_word(std::string &word, size_t doc_id) {
-    WordIndex* word_index;
-    auto it = freq_dictionary.find(word);
+    freq_dict_access.lock();
+    auto& word_index = freq_dictionary[word];
+    freq_dict_access.unlock();
 
-    if (it == freq_dictionary.end()) {
-        freq_dict_access.lock();
-        freq_dictionary.insert({word, WordIndex()});
-        freq_dict_access.unlock();
-        word_index = &freq_dictionary[word];
-    } else {
-        word_index = &(it->second);
-    }
-
-    word_index->access.lock();
-    auto& entries = word_index->index;
+    word_index.access.lock();
+    auto& entries = word_index.index;
     auto pair = entries.find(doc_id);
     if (pair == entries.end()) {
         entries[doc_id] = Entry{static_cast<size_t>(doc_id), 1};
     } else {
         pair->second.count += 1;
     }
-    word_index->access.unlock();
+    word_index.access.unlock();
 }
 
 template<typename StreamT>
