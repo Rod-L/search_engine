@@ -40,7 +40,7 @@ bool ConverterJSON::requests_json_valid(json& requests) {
     return requests.contains("requests") && requests["requests"].is_array();
 }
 
-bool ConverterJSON::protected_parse_json(std::ifstream& file, json& acceptor, std::string& filepath) {
+bool ConverterJSON::protected_parse_json(std::ifstream& file, json& acceptor, const std::string& filepath) {
     try {
         acceptor = json::parse(file);
     } catch(json::exception& exc) {
@@ -70,7 +70,7 @@ void ConverterJSON::load_config_json(json& config) {
 }
 
 bool ConverterJSON::load_config_file(std::string& filepath) {
-    std::ifstream file(config_filepath);
+    std::ifstream file(filepath);
     if (!file.is_open()) {
         std::cout << "Could not open '" << filepath << "' config file." << std::endl;
         return false;
@@ -88,10 +88,11 @@ bool ConverterJSON::load_config_file(std::ifstream& file, std::string& filepath)
     if (config_json_valid(config)) {
         load_config_json(config);
         std::cout << "Config loaded from '" << filepath << "', " << files.size() << " documents listed." << std::endl;
+        config_filepath = filepath;
         return true;
     }
 
-    std::cout << config_filepath << " is not valid configuration file for search engine." << std::endl;
+    std::cout << filepath << " is not valid configuration file for search engine." << std::endl;
     return false;
 }
 
@@ -183,17 +184,37 @@ const std::vector<std::string>& ConverterJSON::get_text_documents() const {
     return files;
 }
 
+bool ConverterJSON::text_documents_from_json(const std::string& filepath, std::vector<std::string>& acceptor) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cout << "Could not open '" << filepath << "' config file." << std::endl;
+        return false;
+    }
+
+    json config;
+    bool parsed = ConverterJSON::protected_parse_json(file, config, filepath);
+    if (!parsed) return false;
+
+    if (!config_json_valid(config)) {
+        std::cout << "'" << filepath << "' is not valid config file." << std::endl;
+        return false;
+    }
+
+    acceptor.reserve(config["files"].size());
+    for (auto& doc : config["files"]) acceptor.push_back(doc);
+
+    return true;
+}
+
 int ConverterJSON::get_responses_limit() const {
     return responses_limit;
 }
 
-std::vector<std::string> ConverterJSON::get_requests(std::string& filepath) {
-    if (filepath.empty()) filepath = "requests.json";
-
+std::vector<std::string> ConverterJSON::get_requests(const std::string& filepath) {
     std::vector<std::string> result;
     std::ifstream file(filepath);
     if (!file.is_open()) {
-        std::cerr << "Could not open 'requests.json' file." << std::endl;
+        std::cerr << "Could not open " << filepath << " file." << std::endl;
         return result;
     }
 

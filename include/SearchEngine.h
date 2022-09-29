@@ -27,6 +27,8 @@ public:
     */
     void update_document_base(const std::vector<std::string>& input_docs);
 
+    void extend_document_base(const std::vector<std::string>& input_docs);
+
     void dump_index(std::ofstream& output) const {
         _index.dump_index(output);
     }

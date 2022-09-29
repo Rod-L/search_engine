@@ -65,11 +65,15 @@ void ConsoleUI::reload_config(std::string &filepath) {
     }
 }
 
-void ConsoleUI::process_requests(std::string &filepath) {
+void ConsoleUI::process_requests(std::string& filepath) {
+    bool empty_filepath = filepath.empty();
+    if (empty_filepath) filepath = "requests.json";
+
     auto requests = ConverterJSON::get_requests(filepath);
     auto results = server.search(requests, converter.get_responses_limit());
 
-    if (filepath.empty()) {
+    if (empty_filepath) {
+        filepath = "answers.json";
         converter.put_answers(results, filepath);
     } else {
         std::string answers_path = filepath;
@@ -186,6 +190,21 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         },
         {
                 9,
+                "ExtendIndex",
+                "takes filepath to config.json as parameter, appends documents from passed file's 'files' section to current base.\n"
+                "Files which already present in current base will keep their doc id, their index will be updated.\n"
+                "   Examples:\n"
+                "   9 filename.json\n"
+                "   ExtendIndex C:/folder name/filename.json",
+                [](){
+                    auto filepath = ConsoleUI::input_filepath();
+                    std::vector<std::string> files;
+                    if (!ConverterJSON::text_documents_from_json(filepath, files)) return;
+                    ConsoleUI::server.extend_document_base(files);
+                }
+        },
+        {
+                10,
                 "Help",
                 "show this list",
                 ConsoleUI::show_help

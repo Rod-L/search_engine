@@ -39,6 +39,11 @@ public:
     const std::vector<std::string>& get_text_documents() const;
 
     /**
+    * @return list of file names from 'files' section of passed file. File must fit 'config.json' requirements
+    */
+    static bool text_documents_from_json(const std::string& filepath, std::vector<std::string>& acceptor);
+
+    /**
     * @return max amount of responses for one request ('max_responses' field from last loaded 'config.json')
     */
     int get_responses_limit() const;
@@ -47,7 +52,7 @@ public:
     * @param filepath path to file to load requests from, if empty string passed, 'requests.json' will be used
     * @return list of queries from 'requests.json'
     */
-    static std::vector<std::string> get_requests(std::string& filepath);
+    static std::vector<std::string> get_requests(const std::string& filepath);
 
     /**
     * Writes results of requests to 'answers.json' file in the executable directory
@@ -75,7 +80,7 @@ private:
     /**
     * Attempts to parse file as json object, errors are written to std::cerr stream
     * @return true if passed file was successfully parsed as json object */
-    static bool protected_parse_json(std::ifstream& file, nlohmann::json& acceptor, std::string& filepath);
+    static bool protected_parse_json(std::ifstream& file, nlohmann::json& acceptor, const std::string& filepath);
 
     /** Loads configuration from json object */
     void load_config_json(nlohmann::json& config);

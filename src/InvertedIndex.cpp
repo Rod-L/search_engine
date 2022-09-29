@@ -19,10 +19,8 @@ InvertedIndex::InvertedIndex(const InvertedIndex& other) {
     freq_dictionary = other.freq_dictionary;
 }
 
-void InvertedIndex::flush_doc_index(size_t doc_id) {
-    for (auto& word_index : freq_dictionary) {
-        word_index.second.index.erase(doc_id);
-    }
+bool InvertedIndex::docs_loaded(const std::vector<std::string>& input_docs) const {
+    return docs == input_docs;
 }
 
 void InvertedIndex::extend_document_base(const std::vector<std::string>& input_docs) {
@@ -163,6 +161,47 @@ std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
     return result;
 }
 
+//// Indexing
+
+void InvertedIndex::clear() {
+    freq_dictionary.clear();
+    docs.clear();
+}
+
+void InvertedIndex::flush_doc_index(size_t doc_id) {
+    for (auto& word_index : freq_dictionary) {
+        word_index.second.index.erase(doc_id);
+    }
+}
+
+std::vector<std::string> InvertedIndex::split_by_non_letters(std::string& word, int min_part_size) {
+    auto is_letter = [](char v){
+        return v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z';
+    };
+
+    std::vector<std::string> result;
+
+    int start = -1;
+    int word_size = static_cast<int>(word.size());
+    for (int i = 0; i < word_size; ++i) {
+        char symbol = word[i];
+
+        if (is_letter(symbol) || isdigit(symbol)) {
+            if (start < 0) start = i;
+            continue;
+        }
+
+        int part_size = i - start;
+        if (start >= 0 && part_size >= min_part_size) result.push_back(word.substr(start, part_size));
+        start = i + 1;
+    }
+
+    int part_size = word_size - start;
+    if (part_size >= min_part_size) result.push_back(word.substr(start, part_size));
+
+    return result;
+}
+
 //// Indexing blocking method
 
 void InvertedIndex::count_word(std::string &word, size_t doc_id) {
@@ -233,35 +272,7 @@ void InvertedIndex::index_doc2(size_t doc_id, StreamT& stream) {
     freq_dict_access.unlock();
 }
 
-////
-
-std::vector<std::string> InvertedIndex::split_by_non_letters(std::string& word, int min_part_size) {
-    auto is_letter = [](char v){
-        return v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z';
-    };
-
-    std::vector<std::string> result;
-
-    int start = -1;
-    int word_size = static_cast<int>(word.size());
-    for (int i = 0; i < word_size; ++i) {
-        char symbol = word[i];
-
-        if (is_letter(symbol) || isdigit(symbol)) {
-            if (start < 0) start = i;
-            continue;
-        }
-
-        int part_size = i - start;
-        if (start >= 0 && part_size >= min_part_size) result.push_back(word.substr(start, part_size));
-        start = i + 1;
-    }
-
-    int part_size = word_size - start;
-    if (part_size >= min_part_size) result.push_back(word.substr(start, part_size));
-
-    return result;
-}
+//// Save/load to/from file
 
 #define DUMP_NUM_T int
 #define PUT_NUM(STREAM, BUF, VAL) BUF = static_cast<DUMP_NUM_T>(VAL); STREAM.write((char*)(&BUF), sizeof(DUMP_NUM_T));
@@ -292,6 +303,7 @@ void InvertedIndex::dump_index(std::ofstream& output) const {
 #define READ_NUM(STREAM, BUF_NAME) DUMP_NUM_T BUF_NAME; READ_NUM_TO(STREAM, BUF_NAME);
 
 bool InvertedIndex::load_index(std::ifstream& input) {
+
     {
         std::string head;
         std::getline(input, head, '\0');
@@ -334,11 +346,4 @@ bool InvertedIndex::load_index(std::ifstream& input) {
     return true;
 }
 
-bool InvertedIndex::docs_loaded(const std::vector<std::string>& input_docs) const {
-    return docs == input_docs;
-}
 
-void InvertedIndex::clear() {
-    freq_dictionary.clear();
-    docs.clear();
-}
