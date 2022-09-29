@@ -25,7 +25,23 @@ public:
     * Updates underlying InvertedIndex
     * @param input_docs list of filenames
     */
-    void update_document_base(std::vector<std::string>& input_docs);
+    void update_document_base(const std::vector<std::string>& input_docs);
+
+    void dump_index(std::ofstream& output) const {
+        _index.dump_index(output);
+    }
+
+    bool load_index(std::ifstream& input) {
+        return _index.load_index(input);
+    }
+
+    bool docs_loaded(const std::vector<std::string>& input_docs) const {
+        return _index.docs_loaded(input_docs);
+    }
+
+    void clear_index() {
+        _index.clear();
+    }
 
 private:
     std::vector<RelativeIndex> process_query(std::vector<std::string>& words, int responses_limit = 0);

@@ -19,31 +19,33 @@ void TestInvertedIndexFunctionality(
         const std::vector<std::string>& requests,
         const std::vector<std::vector<Entry>>& expected) {
 
-    std::vector<std::vector<Entry>> result;
-    InvertedIndex idx;
-    idx.update_text_base(docs);
+    for (int i = 0; i < 400; ++i) {
+        std::vector<std::vector<Entry>> result;
+        InvertedIndex idx;
+        idx.update_text_base(docs);
 
-    for(auto& request : requests) {
-        std::vector<Entry> word_count = idx.get_word_count(request);
-        result.push_back(word_count);
-    }
+        for (auto &request: requests) {
+            std::vector<Entry> word_count = idx.get_word_count(request);
+            result.push_back(word_count);
+        }
 
-    REQUIRE(result.size() == expected.size());
+        REQUIRE(result.size() == expected.size());
 
-    for (int i = 0; i < expected.size(); ++i) {
-        auto& exp = expected[i];
-        auto& res = result[i];
-        REQUIRE(exp.size() == res.size()); // Amount of answers is equal for each requests
+        for (int i = 0; i < expected.size(); ++i) {
+            auto &exp = expected[i];
+            auto &res = result[i];
+            REQUIRE(exp.size() == res.size()); // Amount of answers is equal for each requests
 
-        for (auto& exp_entry : exp) {
-            bool success = have_match(exp_entry, res);
-            if (!success) {
-                std::cout << "Expected:" << std::endl;
-                display_entry_vector(exp);
-                std::cout << "Got: " << std::endl;
-                display_entry_vector(res);
+            for (auto &exp_entry: exp) {
+                bool success = have_match(exp_entry, res);
+                if (!success) {
+                    std::cout << "Expected:" << std::endl;
+                    display_entry_vector(exp);
+                    std::cout << "Got: " << std::endl;
+                    display_entry_vector(res);
+                }
+                REQUIRE(success);
             }
-            REQUIRE(success);
         }
     }
 }
@@ -87,6 +89,55 @@ TEST_CASE("InvertedIndex_TestBasic2") {
     TestInvertedIndexFunctionality(docs, requests, expected);
 }
 
+TEST_CASE("InvertedIndex_IndexExtension") {
+    const std::vector<std::string> docs1 = {
+            "../examples/2/Sample 1.txt",
+            "../examples/2/Sample 2.txt",
+            "../examples/2/Sample 3.txt"
+    };
+
+    const std::vector<std::string> docs2 = {
+            "../examples/2/Sample 2.txt",
+            "../examples/1/Annotations/12 Angry men.txt",
+            "../examples/1/Annotations/Fight club.txt",
+            "../examples/1/Annotations/Forrest Gump.txt"
+    };
+
+    InvertedIndex idx;
+    idx.extend_document_base(docs1);
+    idx.extend_document_base(docs2);
+}
+
+TEST_CASE("InvertedIndex_IndexationPerfomance") {
+    const std::vector<std::string> docs = {
+            "../Meyer David. Behemoth 1.txt",
+            "../Meyer David. Behemoth 2.txt",
+            "../Meyer David. Behemoth 3.txt",
+            "../Meyer David. Behemoth 4.txt",
+            "../Meyer David. Behemoth 5.txt",
+            "../Meyer David. Behemoth 6.txt",
+//            "../../examples/1/Annotations/12 Angry men.txt",
+//            "../../examples/1/Annotations/Fight club.txt",
+//            "../../examples/1/Annotations/Forrest Gump.txt",
+//            "../../examples/1/Annotations/Il buono, il brutto, il cattivo.txt",
+//            "../../examples/1/Annotations/Inception.txt",
+//            "../../examples/1/Annotations/Pulp Fiction.txt",
+//            "../../examples/1/Annotations/Schindler's List.txt",
+//            "../../examples/1/Annotations/The Dark Knight.txt",
+//            "../../examples/1/Annotations/The Godfather part II.txt",
+//            "../../examples/1/Annotations/The Godfather.txt",
+//            "../../examples/1/Annotations/The Lord of the Rings The Fellowship of the Ring.txt",
+//            "../../examples/1/Annotations/The Lord of the Rings The Return of the King.txt",
+//            "../../examples/1/Annotations/The Shawshank Redemption.txt"
+    };
+
+    InvertedIndex idx;
+    for (int i = 0; i < 10; ++i) {
+        idx.clear();
+        idx.update_document_base(docs);
+    }
+}
+
 TEST_CASE("InvertedIndex_MissingWord") {
     const std::vector<std::string> docs = {
             "a b c d e f g h i j k l",
@@ -101,6 +152,21 @@ TEST_CASE("InvertedIndex_MissingWord") {
             }
     };
     TestInvertedIndexFunctionality(docs, requests, expected);
+}
+
+TEST_CASE("InvertedIndex_URLContent") {
+    const std::vector<std::string> docs = {"https://example.com/"};
+    const std::string request = "Domain";
+
+    InvertedIndex idx;
+    idx.update_document_base(docs);
+
+    std::vector<Entry> word_count = idx.get_word_count(request);
+    REQUIRE((word_count.empty() || word_count.size() == 1));
+
+    if (!word_count.empty()) {
+        REQUIRE(word_count[0].count == 2);
+    }
 }
 
 TEST_CASE("InvertedIndex_SplitWords_non_letters") {
@@ -146,11 +212,11 @@ TEST_CASE("InvertedIndex_SplitWords_3") {
 }
 
 TEST_CASE("InvertedIndex_SplitWords_4") {
-    std::string word = "ch_ch_ch";
+    std::string word = "ch1_ch1_ch1";
     auto results = InvertedIndex::split_by_non_letters(word, 2);
 
     REQUIRE(results.size() == 3);
-    REQUIRE(results[0] == "ch");
-    REQUIRE(results[1] == "ch");
-    REQUIRE(results[2] == "ch");
+    REQUIRE(results[0] == "ch1");
+    REQUIRE(results[1] == "ch1");
+    REQUIRE(results[2] == "ch1");
 }

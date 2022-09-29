@@ -6,20 +6,13 @@ void FillDB(InvertedIndex& indexer) {
     std::string doc, content;
     bool success;
 
-    doc = "Test doc 1.txt";
-    content = "Word1 Word1 Word1 Word1 Word2 Word3";
-    success = indexer.add_document(0, doc, content);
-    REQUIRE(success == true);
+    std::vector<std::string> texts = {
+            "Word1 Word1 Word1 Word1 Word2 Word3",
+            "Word1 Word2 Word4",
+            "Word1 Word1 Word2 Word4"
+    };
 
-    doc = "Test doc 2.txt";
-    content = "Word1 Word2 Word4";
-    success = indexer.add_document(1, doc, content);
-    REQUIRE(success == true);
-
-    doc = "Test doc 3.txt";
-    content = "Word1 Word1 Word2 Word4";
-    success = indexer.add_document(2, doc, content);
-    REQUIRE(success == true);
+    indexer.update_text_base(texts);
 }
 
 TEST_CASE("SearchEngine_Search_1") {

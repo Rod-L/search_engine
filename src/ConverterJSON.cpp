@@ -223,10 +223,12 @@ json ConverterJSON::prepare_responses_list(std::vector<RelativeIndex> list) cons
     return relevance;
 }
 
-void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers) const {
-    std::ofstream file("answers.json");
+void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const {
+    if (filepath.empty()) filepath = "answers.json";
+
+    std::ofstream file(filepath);
     if (!file.is_open()) {
-        std::cerr << "Could not open 'answers.json' file." << std::endl;
+        std::cerr << "Could not open '" << filepath << "' file to write answers to." << std::endl;
         return;
     }
 
@@ -266,5 +268,5 @@ void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers)
     int indentLevel = 2;
     file << result.dump(indentLevel);
     file.close();
-    std::cout << "Results have been written to 'answers.json'" << std::endl;
+    std::cout << "Results have been written to '" << filepath << "'" << std::endl;
 }

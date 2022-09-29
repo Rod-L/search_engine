@@ -70,6 +70,6 @@ std::vector<std::vector<RelativeIndex>> SearchServer::search(const std::vector<s
     return result;
 }
 
-void SearchServer::update_document_base(std::vector<std::string>& input_docs) {
+void SearchServer::update_document_base(const std::vector<std::string>& input_docs) {
     _index.update_document_base(input_docs);
 }

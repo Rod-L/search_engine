@@ -52,7 +52,11 @@ public:
     /**
     * Writes results of requests to 'answers.json' file in the executable directory
     */
-    void put_answers(std::vector<std::vector<RelativeIndex>> answers) const;
+    void put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const;
+
+    const std::string& get_config_path() const {
+        return config_filepath;
+    };
 
 private:
     /** Contains maximum amount of responses */

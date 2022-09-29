@@ -16,22 +16,68 @@ namespace ConsoleUI {
     SearchServer server;
 
     void show_help();
+    bool load_backed_index(std::string& filepath);
     void reload_config(std::string &filepath);
+    void form_index();
     void process_requests(std::string &filepath);
     std::string input_filepath();
+    void init_commands(std::map<std::string, void (*)()> &map);
+}
+
+bool ConsoleUI::load_backed_index(std::string& filepath) {
+    std::ifstream backed_index(filepath);
+    if (!backed_index.is_open()) return false;
+
+    std::cout << "'" << filepath << "' detected, loading index from file." << std::endl;
+    bool loaded = ConsoleUI::server.load_index(backed_index);
+    backed_index.close();
+    return loaded;
+}
+
+void ConsoleUI::form_index() {
+    const std::vector<std::string>& docs = converter.get_text_documents();
+    std::string index_path = converter.get_config_path() + ".index.bin";
+
+    bool reindex_necessary = true;
+    if (load_backed_index(index_path)) {
+        if (ConsoleUI::server.docs_loaded(docs)) {
+            reindex_necessary = false;
+        } else {
+            std::cout << "Loaded index from file does not match listed files in 'config.json'." << std::endl;
+            std::cout << "Starting reindexing. Dump index afterwards if necessary." << std::endl;
+            server.clear_index();
+        }
+    }
+
+    if (reindex_necessary && !docs.empty()) {
+        ConsoleUI::server.update_document_base(docs);
+        std::ofstream file(index_path);
+        if (file.is_open()) {
+            ConsoleUI::server.dump_index(file);
+            file.close();
+        }
+    }
 }
 
 void ConsoleUI::reload_config(std::string &filepath) {
     if (converter.reload_config_file(filepath)) {
-        auto docs = converter.get_text_documents();
-        if (!docs.empty()) server.update_document_base(docs);
+        form_index();
     }
 }
 
 void ConsoleUI::process_requests(std::string &filepath) {
     auto requests = ConverterJSON::get_requests(filepath);
     auto results = server.search(requests, converter.get_responses_limit());
-    converter.put_answers(results);
+
+    if (filepath.empty()) {
+        converter.put_answers(results, filepath);
+    } else {
+        std::string answers_path = filepath;
+        auto slash_pos = answers_path.rfind('/');
+        answers_path.resize(slash_pos == std::string::npos ? 0 : slash_pos);
+        answers_path.append("/answers.json");
+        converter.put_answers(results, answers_path);
+    }
 }
 
 std::string ConsoleUI::input_filepath() {
@@ -54,7 +100,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         {
                 2,
                 "ProcessRequestsFrom",
-                "process requests from file by path (taken as parameter), results will be stored in 'answers.json' in executable directory;\n"
+                "process requests from file by path (taken as parameter), results will be stored in 'answers.json' in requests file directory;\n"
                 "   Examples:\n"
                 "   2 ../folder_name/filename.json\n"
                 "   ProcessRequestsFrom C:/folder_name/filename.json",
@@ -87,7 +133,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         {
                 5,
                 "SaveConfigTo",
-                "5 - SaveConfigTo - saves current config into file by path (taken as parameter);\n"
+                "saves current config into file by path (taken as parameter);\n"
                 "   Examples:\n"
                 "   5 filename.json\n"
                 "   SaveConfigTo C:/filename.json",
@@ -99,7 +145,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         {
                 6,
                 "CheckFile",
-                "6 - CheckFile - check file by path, whether it valid file for search engine or not.\n"
+                "check file by path, whether it valid file for search engine or not.\n"
                 "   Examples:\n"
                 "   6 filename.json\n"
                 "   CheckFile C:/filename.json",
@@ -110,6 +156,36 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         },
         {
                 7,
+                "DumpIndex",
+                "dump index into file for future reload. Creates 'd_index.bin' in executable directory.",
+                []() {
+                    std::ofstream file("d_index.bin");
+                    if (file.is_open()) {
+                        ConsoleUI::server.dump_index(file);
+                        file.close();
+                        std::cout << "Index have been written to 'd_index.bin'." << std::endl;
+                    } else {
+                        std::cerr << "Could not open file 'd_index.bin'." << std::endl;
+                    }
+                }
+        },
+        {
+                8,
+                "LoadIndex",
+                "attempts to load index from 'd_index.bin' in executable directory.",
+                []() {
+                    std::ifstream file("d_index.bin");
+                    if (file.is_open()) {
+                        ConsoleUI::server.load_index(file);
+                        file.close();
+                        std::cout << "Index have been loaded from 'd_index.bin'." << std::endl;
+                    } else {
+                        std::cerr << "Could not open file 'd_index.bin'." << std::endl;
+                    }
+                }
+        },
+        {
+                9,
                 "Help",
                 "show this list",
                 ConsoleUI::show_help
@@ -130,7 +206,7 @@ void ConsoleUI::show_help() {
     }
 }
 
-void init_commands(std::map<std::string, void (*)()> &map) {
+void ConsoleUI::init_commands(std::map<std::string, void (*)()> &map) {
     for (auto &command: CONSOLE_COMMANDS) {
         map[command.name] = command.func;
         map[std::to_string(command.code)] = command.func;

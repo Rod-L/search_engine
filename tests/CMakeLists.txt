@@ -33,6 +33,13 @@ catch_discover_tests(${TESTS_PROJECT_NAME})
 
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
+##############################################
+# CPR - http support
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE cpr::cpr)
+
 ############################################
 
 

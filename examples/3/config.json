@@ -1,0 +1,18 @@
+{
+  "config": {
+    "max_responses": 5,
+    "name": "SkillboxSearchEngine",
+    "version": "0.1"
+  },
+  "files": [
+    "https://www.imdb.com/title/tt0111161/",
+    "https://www.imdb.com/title/tt0068646/",
+    "https://www.imdb.com/title/tt0468569/",
+    "https://www.imdb.com/title/tt0071562/",
+    "https://www.imdb.com/title/tt0050083/",
+    "https://www.imdb.com/title/tt0108052/",
+    "https://www.imdb.com/title/tt0167260/",
+    "https://www.imdb.com/title/tt0110912/",
+    "https://www.imdb.com/title/tt0120737/"
+  ]
+}
