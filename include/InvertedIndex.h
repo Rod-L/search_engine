@@ -81,6 +81,10 @@ public:
 
     bool docs_loaded(const std::vector<std::string>& input_docs) const;
 
+    const std::vector<std::string>& get_loaded_docs() const {
+        return docs;
+    };
+
     void clear();
 
 private:
@@ -103,5 +107,13 @@ private:
 
     template<typename StreamT>
     void index_doc2(size_t doc_id, StreamT& stream);
+
+    int dump_num_size() const;
+
+    template<typename uint>
+    void internal_dump_index(std::ofstream& output) const;
+
+    template<typename uint>
+    bool internal_load_index(std::ifstream& input);
 };
 

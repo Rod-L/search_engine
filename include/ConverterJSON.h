@@ -59,9 +59,52 @@ public:
     */
     void put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const;
 
+
+    /**
+    * @return max amount of responses for one request ('max_responses' field from last loaded 'config.json')
+    */
+    void set_responses_limit(int limit) {
+        responses_limit = limit;
+    };
+
     const std::string& get_config_path() const {
         return config_filepath;
     };
+
+    void add_files(const std::vector<std::string>& new_files) {
+        for (auto& name : new_files) {
+            auto exist = std::find(files.begin(), files.end(), name);
+            if (exist == files.end()) files.push_back(name);
+        }
+    };
+
+    void files_status(const std::string& filename, const std::vector<std::string>& loaded_docs) const {
+        nlohmann::json status;
+        status["filenames"] = nlohmann::json::array();
+        status["in_config"] = nlohmann::json::array();
+        status["in_base"] = nlohmann::json::array();
+        status["id_mismatch"] = nlohmann::json::array();
+
+        int border = std::max(files.size(), loaded_docs.size());
+        for (int i = 0; i < border; ++i) {
+            bool in_config = i < files.size(), in_base = i < loaded_docs.size();
+            bool id_mismatch = false;
+            if (in_config && in_base) id_mismatch = files[i] != loaded_docs[i];
+
+            status["filenames"][i] = in_config ? files[i] : loaded_docs[i];
+            status["in_config"][i] = in_config;
+            status["in_base"][i] = in_base;
+            status["id_mismatch"][i] = id_mismatch;
+        }
+
+        std::ofstream file(filename);
+        if (file.is_open()) {
+            file << status.dump(2);
+            file.close();
+        } else {
+            std::cerr << "Could not open file '" << filename << "'" << std::endl;
+        }
+    }
 
 private:
     /** Contains maximum amount of responses */

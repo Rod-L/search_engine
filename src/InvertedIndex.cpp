@@ -78,16 +78,16 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
     }
 
     int loading_id = 0;
+    int loaded_count = 0;
     for (auto& thread : threads) {
         std::cout << "Processing doc #" << loading_id << ": " << input_docs[loading_id] << std::endl;
         if (thread.joinable()) thread.join();
-        if (!loading_errors[loading_id].empty()) std::cout << loading_errors[loading_id] << std::endl;
+        if (!loading_errors[loading_id].empty()) {
+            std::cout << loading_errors[loading_id] << std::endl;
+        } else {
+            ++loaded_count;
+        }
         ++loading_id;
-    }
-
-    int loaded_count = 0;
-    for (auto& doc : docs) {
-        if (!doc.empty()) ++loaded_count;
     }
     std::cout << "Database updated, documents loaded: " << loaded_count << std::endl;
 }
@@ -274,68 +274,107 @@ void InvertedIndex::index_doc2(size_t doc_id, StreamT& stream) {
 
 //// Save/load to/from file
 
-#define DUMP_NUM_T int
-#define PUT_NUM(STREAM, BUF, VAL) BUF = static_cast<DUMP_NUM_T>(VAL); STREAM.write((char*)(&BUF), sizeof(DUMP_NUM_T));
+#define PUT_NUM(STREAM, TYPENAME, VAL) {TYPENAME buf = static_cast<TYPENAME>(VAL); STREAM.write((char*)(&buf), sizeof(TYPENAME));};
+
+int InvertedIndex::dump_num_size() const {
+    size_t n = docs.size();
+    for (auto& word_index : freq_dictionary) {
+        for (auto& entry : word_index.second.index) n = std::max(n, entry.second.count);
+    }
+
+    if (n > 0xFFFFFFFF) return 8;
+    if (n > 0xFFFF) return 4;
+    if (n > 0xFF) return 2;
+    return 1;
+}
 
 void InvertedIndex::dump_index(std::ofstream& output) const {
-    DUMP_NUM_T num_buf;
-
     output << "SearchEngine" << '\0';
-    PUT_NUM(output, num_buf, _index_dump_version);
+    PUT_NUM(output, int, _index_dump_version);
 
-    PUT_NUM(output, num_buf, docs.size());
+    int n_size = dump_num_size();
+    PUT_NUM(output, uint8_t, n_size);
+    switch (n_size) {
+        case 8: internal_dump_index<uint64_t>(output); break;
+        case 4: internal_dump_index<uint32_t>(output); break;
+        case 2: internal_dump_index<uint16_t>(output); break;
+        case 1: internal_dump_index<uint8_t>(output); break;
+        default: throw std::runtime_error("Undefined type of numerical size for index dump.");
+    }
+}
+
+template<typename uint>
+void InvertedIndex::internal_dump_index(std::ofstream& output) const {
+    PUT_NUM(output, uint, docs.size());
 
     for (auto& doc : docs) output << doc << '\0';
 
-    PUT_NUM(output, num_buf, freq_dictionary.size());
+    PUT_NUM(output, uint, freq_dictionary.size());
     for (auto& word_index : freq_dictionary) {
         output << word_index.first << '\0';
-        PUT_NUM(output, num_buf, word_index.second.index.size());
+        PUT_NUM(output, uint, word_index.second.index.size());
 
         for (auto& entry : word_index.second.index) {
-            PUT_NUM(output, num_buf, entry.second.doc_id);
-            PUT_NUM(output, num_buf, entry.second.count);
+            PUT_NUM(output, uint, entry.second.doc_id);
+            PUT_NUM(output, uint, entry.second.count);
         }
     }
 }
 
-#define READ_NUM_TO(STREAM, BUF) STREAM.read((char*)(&BUF), sizeof(DUMP_NUM_T));
-#define READ_NUM(STREAM, BUF_NAME) DUMP_NUM_T BUF_NAME; READ_NUM_TO(STREAM, BUF_NAME);
+#define READ_NUM_TO(STREAM, TYPENAME, BUF) STREAM.read((char*)(&BUF), sizeof(TYPENAME));
+#define READ_NUM(STREAM, TYPENAME, BUF_NAME) TYPENAME BUF_NAME; READ_NUM_TO(STREAM, TYPENAME, BUF_NAME);
 
 bool InvertedIndex::load_index(std::ifstream& input) {
+    std::string head;
+    std::getline(input, head, '\0');
 
-    {
-        std::string head;
-        std::getline(input, head, '\0');
-
-        if (head != "SearchEngine") {
-            std::cerr << "Could not load previously saved index: index file is corrupted." << std::endl;
-            return false;
-        }
-
-        READ_NUM(input, dump_version);
-        if (static_cast<int>(dump_version) != _index_dump_version) {
-            std::cerr << "Could not load previously saved index: versions of binary dump do not match." << std::endl;
-            return false;
-        }
+    if (head != "SearchEngine") {
+        std::cerr << "Could not load previously saved index: index file is corrupted." << std::endl;
+        return false;
     }
 
-    READ_NUM(input, docs_amount);
+    READ_NUM(input, int, dump_version);
+    if (static_cast<int>(dump_version) != _index_dump_version) {
+        std::cerr << "Could not load previously saved index: versions of binary dump do not match." << std::endl;
+        return false;
+    }
+
+    READ_NUM(input, uint8_t, n_size);
+    switch (n_size) {
+        case 8: return internal_load_index<uint64_t>(input);
+        case 4: return internal_load_index<uint32_t>(input);
+        case 2: return internal_load_index<uint16_t>(input);
+        case 1: return internal_load_index<uint8_t>(input);
+        default: std::cerr << "Could not load previously saved index: Undefined type of numerical size for index load." << std::endl;
+    }
+    return false;
+}
+
+template<typename uint>
+bool InvertedIndex::internal_load_index(std::ifstream& input) {
+
+    READ_NUM(input, uint, docs_amount);
     docs.resize(docs_amount);
 
-    for (DUMP_NUM_T i = 0; i < docs_amount; ++i) std::getline(input, docs[i], '\0');
+    for (uint i = 0; i < docs_amount; ++i) std::getline(input, docs[i], '\0');
 
-    READ_NUM(input, dict_size);
+    READ_NUM(input, uint, dict_size);
 
-    for (DUMP_NUM_T i = 0; i < dict_size; ++i) {
+    for (uint i = 0; i < dict_size; ++i) {
         std::string word;
         std::getline(input, word, '\0');
         auto& word_index = freq_dictionary[word];
 
-        READ_NUM(input, docs_count);
-        for (DUMP_NUM_T j = 0; j < docs_count; ++j) {
-            READ_NUM(input, doc_id);
-            READ_NUM(input, count);
+        READ_NUM(input, uint, docs_count);
+        for (uint j = 0; j < docs_count; ++j) {
+            READ_NUM(input, uint, doc_id);
+            READ_NUM(input, uint, count);
+
+            if (doc_id > docs_amount) {
+                clear();
+                std::cerr << "Could not load previously saved index: index file is corrupted: incorrect document id detected." << std::endl;
+                return false;
+            }
 
             auto& entry = word_index.index[static_cast<size_t>(doc_id)];
             entry.doc_id = static_cast<size_t>(doc_id);
