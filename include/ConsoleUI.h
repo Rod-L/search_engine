@@ -16,12 +16,25 @@ namespace ConsoleUI {
     SearchServer server;
 
     void show_help();
+    bool file_exist(const std::string& filepath);
     bool load_backed_index(std::string& filepath);
     void reload_config(std::string &filepath);
     void form_index();
     void process_requests(std::string &filepath);
     std::string input_filepath();
+    std::string catalog_from_filepath(const std::string& filepath);
+    std::string index_path(const std::string& config_path);
+    void reindex_files();
     void init_commands(std::map<std::string, void (*)()> &map);
+}
+
+bool ConsoleUI::file_exist(const std::string& filepath) {
+    std::ifstream backed_index(filepath);
+    if (backed_index.is_open()) {
+        backed_index.close();
+        return true;
+    }
+    return false;
 }
 
 bool ConsoleUI::load_backed_index(std::string& filepath) {
@@ -34,29 +47,59 @@ bool ConsoleUI::load_backed_index(std::string& filepath) {
     return loaded;
 }
 
+std::string ConsoleUI::index_path(const std::string& config_path) {
+    return catalog_from_filepath(config_path) + "index.bin";
+}
+
+void ConsoleUI::reindex_files() {
+    server.update_document_base(converter.get_text_documents());
+
+    if (!ConsoleUI::converter.autodump_enabled()) {
+        std::cout << "Auto dump disabled. Dump index manually, using 'DumpIndex' command, if necessary." << std::endl;
+        return;
+    }
+
+    std::string index_path = ConsoleUI::index_path(converter.get_config_path());
+    std::ofstream file(index_path);
+    if (file.is_open()) {
+        ConsoleUI::server.dump_index(file);
+        std::cout << "Index have been saved to '" << index_path << "'." << std::endl;
+        file.close();
+    } else {
+        std::cout << "Could not open file '" << index_path << "' to dump index to." << std::endl;
+    }
+}
+
 void ConsoleUI::form_index() {
     const std::vector<std::string>& docs = converter.get_text_documents();
-    std::string index_path = converter.get_config_path() + ".index.bin";
+    std::string index_path = ConsoleUI::index_path(converter.get_config_path());
 
     bool reindex_necessary = true;
-    if (load_backed_index(index_path)) {
+
+    if (file_exist(index_path) && !ConsoleUI::converter.dump_autoload_enabled()) {
+        std::cout << "'" << index_path << "' detected, but dump auto load disabled. Load dump manually, using 'LoadIndex' if necessary." << std::endl;
+
+    } else if (load_backed_index(index_path)) {
         if (ConsoleUI::server.docs_loaded(docs)) {
             reindex_necessary = false;
         } else {
             std::cout << "Loaded index from file does not match listed files in 'config.json'." << std::endl;
-            std::cout << "Starting reindexing. Dump index afterwards if necessary." << std::endl;
             server.clear_index();
         }
     }
 
-    if (reindex_necessary && !docs.empty()) {
-        ConsoleUI::server.update_document_base(docs);
-        std::ofstream file(index_path);
-        if (file.is_open()) {
-            ConsoleUI::server.dump_index(file);
-            file.close();
-        }
+    if (!reindex_necessary) return;
+
+    if (docs.empty()) return;
+
+    if (!ConsoleUI::converter.autoreindex_enabled()) {
+        std::cout << "Documents listed: " << docs.size() << ", documets loaded into base: " << server.get_loaded_docs().size() << std::endl;
+        std::cout << "Auto reindex disbaled. Start reindex manually, using 'ReindexFiles' if necessary." << std::endl;
+        return;
     }
+
+    std::cout << "Starting indexation." << std::endl;
+    ConsoleUI::reindex_files();
 }
 
 void ConsoleUI::reload_config(std::string &filepath) {
@@ -76,12 +119,16 @@ void ConsoleUI::process_requests(std::string& filepath) {
         filepath = "answers.json";
         converter.put_answers(results, filepath);
     } else {
-        std::string answers_path = filepath;
-        auto slash_pos = answers_path.rfind('/');
-        answers_path.resize(slash_pos == std::string::npos ? 0 : slash_pos);
-        answers_path.append("/answers.json");
+        std::string answers_path = catalog_from_filepath(filepath);
+        answers_path.append("answers.json");
         converter.put_answers(results, answers_path);
     }
+}
+
+std::string ConsoleUI::catalog_from_filepath(const std::string& filepath) {
+    auto slash_pos = filepath.rfind('/');
+    if (slash_pos == std::string::npos) return "";
+    return filepath.substr(0, slash_pos + 1);
 }
 
 std::string ConsoleUI::input_filepath() {
@@ -161,30 +208,32 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         {
                 7,
                 "DumpIndex",
-                "dump index into file for future reload. Creates 'd_index.bin' in executable directory.",
+                "dump index into file for future reload. Creates 'index.bin' in directory of current loaded configuration file.",
                 []() {
-                    std::ofstream file("d_index.bin");
+                    std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
+                    std::ofstream file(index_path);
                     if (file.is_open()) {
                         ConsoleUI::server.dump_index(file);
                         file.close();
-                        std::cout << "Index have been written to 'd_index.bin'." << std::endl;
+                        std::cout << "Index have been written to '" << index_path << "'." << std::endl;
                     } else {
-                        std::cerr << "Could not open file 'd_index.bin'." << std::endl;
+                        std::cerr << "Could not open file '" << index_path << "'." << std::endl;
                     }
                 }
         },
         {
                 8,
                 "LoadIndex",
-                "attempts to load index from 'd_index.bin' in executable directory.",
+                "attempts to load index from 'index.bin' in directory of current loaded configuration file.",
                 []() {
-                    std::ifstream file("d_index.bin");
+                    std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
+                    std::ifstream file(index_path);
                     if (file.is_open()) {
                         ConsoleUI::server.load_index(file);
                         file.close();
-                        std::cout << "Index have been loaded from 'd_index.bin'." << std::endl;
+                        std::cout << "Index have been loaded from '" << index_path << "'." << std::endl;
                     } else {
-                        std::cerr << "Could not open file 'd_index.bin'." << std::endl;
+                        std::cerr << "Could not open file '" << index_path << "'." << std::endl;
                     }
                 }
         },
@@ -196,7 +245,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   Examples:\n"
                 "   9 filename.json\n"
                 "   ExtendIndex C:/folder name/filename.json",
-                [](){
+                []() {
                     auto filepath = ConsoleUI::input_filepath();
                     std::vector<std::string> files;
                     if (!ConverterJSON::text_documents_from_json(filepath, files)) return;
@@ -205,6 +254,31 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         },
         {
                 10,
+                "ReindexFiles",
+                "clear current index and reindex files from loaded configuration files.",
+                ConsoleUI::reindex_files
+        },
+        {
+                11,
+                "ReindexFile",
+                "takes id of file from loaded configuration file as parameter, attempts to reindex it.",
+                []() {
+                    //TODO
+                }
+        },
+        {
+                12,
+                "FilesStatus",
+                "saves status of loaded/listed files to 'status.json' to directory of last loaded config.\n",
+                []() {
+                    auto filepath = ConsoleUI::converter.get_config_path();
+                    auto catalog = ConsoleUI::catalog_from_filepath(filepath);
+                    auto status_path = catalog + "status.json";
+                    ConsoleUI::converter.files_status(status_path, ConsoleUI::server.get_loaded_docs());
+                }
+        },
+        {
+                13,
                 "Help",
                 "show this list",
                 ConsoleUI::show_help

@@ -33,7 +33,7 @@ bool ConverterJSON::check_json_file(std::string& filepath) {
 }
 
 bool ConverterJSON::config_json_valid(json& config) {
-    return config.contains("files") && config["files"].is_array() && config.contains("config") && config["config"].contains("max_responses");
+    return config.contains("files") && config["files"].is_array() && config.contains("config");
 }
 
 bool ConverterJSON::requests_json_valid(json& requests) {
@@ -66,7 +66,11 @@ void ConverterJSON::load_config_json(json& config) {
                      "Update 'config.json' and run 'ReloadConfig' command." << std::endl;
     }
 
-    responses_limit = config["config"]["max_responses"];
+    auto& settings = config["config"];
+    responses_limit = settings.contains("max_responses") ? static_cast<int>(settings["max_responses"]) : 5;
+    auto_reindex = settings.contains("auto_reindex") && settings["auto_reindex"];
+    auto_dump_index = settings.contains("auto_dump_index") && settings["auto_dump_index"];
+    auto_load_index_dump = settings.contains("auto_load_index_dump") && settings["auto_load_index_dump"];
 }
 
 bool ConverterJSON::load_config_file(std::string& filepath) {
@@ -156,7 +160,10 @@ void ConverterJSON::save_config_file(std::string& filepath) const {
     config["config"] = {
             {"name", "SkillboxSearchEngine"},
             {"version", "0.1"},
-            {"max_responses", responses_limit}
+            {"max_responses", responses_limit},
+            {"auto_dump_index", true},
+            {"auto_load_index_dump", true},
+            {"auto_reindex", false}
     };
 
     config["files"] = files;
@@ -259,6 +266,12 @@ void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers,
 
         int id_length = static_cast<int>(str_id.size());
         int template_length = static_cast<int>(repr.size());
+
+        if (id_length > 3) {
+            repr.reserve(template_length + id_length - 3);
+            for (int i = 3; i < id_length; ++i) repr.append("0");
+        }
+
         for (int i = id_length - 1; i >= 0; --i) {
             repr[template_length - 1 - i] = str_id[i];
         }

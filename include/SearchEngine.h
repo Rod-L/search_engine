@@ -6,7 +6,7 @@
 #include "InvertedIndex.h"
 #include "RelativeIndex.h"
 
-class SearchServer {
+class SearchServer: public InvertedIndex {
 public:
     SearchServer() = default;
 
@@ -21,29 +21,8 @@ public:
     */
     std::vector<std::vector<RelativeIndex>> search(const std::vector<std::string>& queries_input, int responses_limit = 0);
 
-    /**
-    * Updates underlying InvertedIndex
-    * @param input_docs list of filenames
-    */
-    void update_document_base(const std::vector<std::string>& input_docs);
-
-    void extend_document_base(const std::vector<std::string>& input_docs);
-
-    void dump_index(std::ofstream& output) const {
-        _index.dump_index(output);
-    }
-
-    bool load_index(std::ifstream& input) {
-        return _index.load_index(input);
-    }
-
-    bool docs_loaded(const std::vector<std::string>& input_docs) const {
-        return _index.docs_loaded(input_docs);
-    }
-
-    void clear_index() {
-        _index.clear();
-    }
+    /** clears underlying inverted index*/
+    void clear_index();
 
 private:
     std::vector<RelativeIndex> process_query(std::vector<std::string>& words, int responses_limit = 0);

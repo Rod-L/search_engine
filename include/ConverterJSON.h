@@ -59,7 +59,6 @@ public:
     */
     void put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const;
 
-
     /**
     * @return max amount of responses for one request ('max_responses' field from last loaded 'config.json')
     */
@@ -87,9 +86,10 @@ public:
 
         int border = std::max(files.size(), loaded_docs.size());
         for (int i = 0; i < border; ++i) {
-            bool in_config = i < files.size(), in_base = i < loaded_docs.size();
+            bool in_config = i < files.size();
+            bool in_base = i < loaded_docs.size() && !loaded_docs[i].empty();
             bool id_mismatch = false;
-            if (in_config && in_base) id_mismatch = files[i] != loaded_docs[i];
+            if (in_config && in_base) id_mismatch = !loaded_docs[i].empty() && files[i] != loaded_docs[i];
 
             status["filenames"][i] = in_config ? files[i] : loaded_docs[i];
             status["in_config"][i] = in_config;
@@ -101,9 +101,22 @@ public:
         if (file.is_open()) {
             file << status.dump(2);
             file.close();
+            std::cout << "Status report saved to '" << filename << "'." << std::endl;
         } else {
-            std::cerr << "Could not open file '" << filename << "'" << std::endl;
+            std::cerr << "Could not open file '" << filename << "'." << std::endl;
         }
+    }
+
+    bool autoreindex_enabled() {
+        return auto_reindex;
+    }
+
+    bool autodump_enabled() {
+        return auto_dump_index;
+    }
+
+    bool dump_autoload_enabled() {
+        return auto_load_index_dump;
     }
 
 private:
@@ -113,6 +126,11 @@ private:
     std::string config_filepath;
     /** Contains text document names loaded from config file */
     std::vector<std::string> files;
+
+    /** flags loaded from config file */
+    bool auto_reindex;
+    bool auto_dump_index;
+    bool auto_load_index_dump;
 
     /** @return true if passed json fits 'requests.json' format */
     static bool requests_json_valid(nlohmann::json& requests);

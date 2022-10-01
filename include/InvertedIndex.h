@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <map>
+#include <ctime>
 
 #include <mutex>
 #include <thread>
@@ -23,6 +24,16 @@ struct WordIndex {
     WordIndex() = default;
 
     WordIndex(const WordIndex& other);
+};
+
+struct DocInfo {
+    bool indexed;
+    bool indexing_in_progress;
+    bool indexing_error;
+    bool from_url;
+    time_t index_date;
+    std::string error_text;
+    std::mutex access;
 };
 
 class InvertedIndex {
@@ -81,10 +92,9 @@ public:
 
     bool docs_loaded(const std::vector<std::string>& input_docs) const;
 
-    const std::vector<std::string>& get_loaded_docs() const {
-        return docs;
-    };
+    const std::vector<std::string>& get_loaded_docs() const;
 
+protected:
     void clear();
 
 private:
@@ -92,6 +102,7 @@ private:
 
     std::mutex docs_access;
     std::vector<std::string> docs;
+    std::vector<DocInfo> docs_info;
 
     std::mutex freq_dict_access;
     std::map<std::string, WordIndex> freq_dictionary;

@@ -4,7 +4,6 @@
 
 void FillDB(InvertedIndex& indexer) {
     std::string doc, content;
-    bool success;
 
     std::vector<std::string> texts = {
             "Word1 Word1 Word1 Word1 Word2 Word3",

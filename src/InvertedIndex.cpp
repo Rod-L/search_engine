@@ -13,10 +13,17 @@ WordIndex::WordIndex(const WordIndex& other) {
     index = other.index;
 };
 
+//// DocInfo struct
+
+
 //// InvertedIndex class
 
 InvertedIndex::InvertedIndex(const InvertedIndex& other) {
     freq_dictionary = other.freq_dictionary;
+}
+
+const std::vector<std::string>& InvertedIndex::get_loaded_docs() const  {
+    return docs;
 }
 
 bool InvertedIndex::docs_loaded(const std::vector<std::string>& input_docs) const {
@@ -384,5 +391,7 @@ bool InvertedIndex::internal_load_index(std::ifstream& input) {
 
     return true;
 }
+
+
 
 
