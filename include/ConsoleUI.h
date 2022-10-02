@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thread>
+
 #include "ConverterJSON.h"
 #include "SearchEngine.h"
 
@@ -77,7 +79,7 @@ void ConsoleUI::form_index() {
     bool reindex_necessary = true;
 
     if (file_exist(index_path) && !ConsoleUI::converter.dump_autoload_enabled()) {
-        std::cout << "'" << index_path << "' detected, but dump auto load disabled. Load dump manually, using 'LoadIndex' if necessary." << std::endl;
+        std::cout << "'" << index_path << "' detected, but dump auto load disabled. Load dump manually, using 'LoadIndex', if necessary." << std::endl;
 
     } else if (load_backed_index(index_path)) {
         if (ConsoleUI::server.docs_loaded(docs)) {
@@ -93,8 +95,8 @@ void ConsoleUI::form_index() {
     if (docs.empty()) return;
 
     if (!ConsoleUI::converter.autoreindex_enabled()) {
-        std::cout << "Documents listed: " << docs.size() << ", documets loaded into base: " << server.get_loaded_docs().size() << std::endl;
-        std::cout << "Auto reindex disbaled. Start reindex manually, using 'ReindexFiles' if necessary." << std::endl;
+        std::cout << "Documents listed: " << docs.size() << ", documents loaded into base: " << server.get_docs_info().size() << std::endl;
+        std::cout << "Auto reindex disabled. Start reindex manually, using 'ReindexFiles', if necessary." << std::endl;
         return;
     }
 
@@ -247,16 +249,21 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   ExtendIndex C:/folder name/filename.json",
                 []() {
                     auto filepath = ConsoleUI::input_filepath();
-                    std::vector<std::string> files;
-                    if (!ConverterJSON::text_documents_from_json(filepath, files)) return;
-                    ConsoleUI::server.extend_document_base(files);
+                    auto func = [](std::string filepath) {
+                        std::vector<std::string> files;
+                        if (!ConverterJSON::text_documents_from_json(filepath, files)) return;
+                        ConsoleUI::server.extend_document_base(files);
+                    };
+                    std::thread(func, filepath).detach();
                 }
         },
         {
                 10,
                 "ReindexFiles",
                 "clear current index and reindex files from loaded configuration files.",
-                ConsoleUI::reindex_files
+                []() {
+                    std::thread(&ConsoleUI::reindex_files).detach();
+                }
         },
         {
                 11,
@@ -269,12 +276,12 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         {
                 12,
                 "FilesStatus",
-                "saves status of loaded/listed files to 'status.json' to directory of last loaded config.\n",
+                "saves status of loaded/listed files to 'status.json' to directory of last loaded config.",
                 []() {
                     auto filepath = ConsoleUI::converter.get_config_path();
                     auto catalog = ConsoleUI::catalog_from_filepath(filepath);
                     auto status_path = catalog + "status.json";
-                    ConsoleUI::converter.files_status(status_path, ConsoleUI::server.get_loaded_docs());
+                    ConsoleUI::converter.files_status(status_path, ConsoleUI::server.get_docs_info());
                 }
         },
         {

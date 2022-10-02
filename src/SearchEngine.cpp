@@ -19,7 +19,7 @@ std::vector<RelativeIndex> SearchServer::process_query(std::vector<std::string>&
     // count absolute ranks for each document
     std::map<size_t, size_t> docsTotalRank;
     for (auto& word : words) {
-        auto entries = _index.get_word_count(word);
+        auto entries = get_word_count(word);
         for (auto& entry : entries) {
             docsTotalRank[entry.doc_id] += entry.count;
         }

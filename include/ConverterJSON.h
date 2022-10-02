@@ -7,6 +7,7 @@
 
 #include "nlohmann/json.hpp"
 #include "RelativeIndex.h"
+#include "DocInfoStruct.h"
 
 class ConverterJSON {
 
@@ -77,35 +78,7 @@ public:
         }
     };
 
-    void files_status(const std::string& filename, const std::vector<std::string>& loaded_docs) const {
-        nlohmann::json status;
-        status["filenames"] = nlohmann::json::array();
-        status["in_config"] = nlohmann::json::array();
-        status["in_base"] = nlohmann::json::array();
-        status["id_mismatch"] = nlohmann::json::array();
-
-        int border = std::max(files.size(), loaded_docs.size());
-        for (int i = 0; i < border; ++i) {
-            bool in_config = i < files.size();
-            bool in_base = i < loaded_docs.size() && !loaded_docs[i].empty();
-            bool id_mismatch = false;
-            if (in_config && in_base) id_mismatch = !loaded_docs[i].empty() && files[i] != loaded_docs[i];
-
-            status["filenames"][i] = in_config ? files[i] : loaded_docs[i];
-            status["in_config"][i] = in_config;
-            status["in_base"][i] = in_base;
-            status["id_mismatch"][i] = id_mismatch;
-        }
-
-        std::ofstream file(filename);
-        if (file.is_open()) {
-            file << status.dump(2);
-            file.close();
-            std::cout << "Status report saved to '" << filename << "'." << std::endl;
-        } else {
-            std::cerr << "Could not open file '" << filename << "'." << std::endl;
-        }
-    }
+    void files_status(const std::string& filename, const std::vector<DocInfo>& docs_info) const;
 
     bool autoreindex_enabled() {
         return auto_reindex;

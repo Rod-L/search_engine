@@ -7,9 +7,9 @@
 #include <sstream>
 #include <map>
 #include <ctime>
-
 #include <mutex>
-#include <thread>
+
+#include "DocInfoStruct.h"
 
 struct Entry {
     size_t doc_id, count;
@@ -24,16 +24,6 @@ struct WordIndex {
     WordIndex() = default;
 
     WordIndex(const WordIndex& other);
-};
-
-struct DocInfo {
-    bool indexed;
-    bool indexing_in_progress;
-    bool indexing_error;
-    bool from_url;
-    time_t index_date;
-    std::string error_text;
-    std::mutex access;
 };
 
 class InvertedIndex {
@@ -57,12 +47,14 @@ public:
     */
     void update_text_base(const std::vector<std::string>& input_texts);
 
+    void report_indexation_finish(const std::string& filename, const DocInfo& doc_info);
+
     /**
     * Add and index document
     * @param filename document filename
     * @return true if file processed successfully
     */
-    bool add_document(size_t doc_id, const std::string& filename, std::vector<std::string>& loading_errors);
+    bool add_document(size_t doc_id, const std::string& filename);
 
     /**
     * Add and index document
@@ -94,14 +86,14 @@ public:
 
     const std::vector<std::string>& get_loaded_docs() const;
 
+    const std::vector<DocInfo>& get_docs_info() const;
+
 protected:
     void clear();
 
 private:
     const int _index_dump_version = 1;
 
-    std::mutex docs_access;
-    std::vector<std::string> docs;
     std::vector<DocInfo> docs_info;
 
     std::mutex freq_dict_access;

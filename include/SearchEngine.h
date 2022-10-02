@@ -11,11 +11,6 @@ public:
     SearchServer() = default;
 
     /**
-    * @param idx prepared InvertedIndex to use for search queries
-    */
-    explicit SearchServer(InvertedIndex& idx) : _index(idx) {};
-
-    /**
     * @param queries_input list of queries
     * @return array of lists with responses, sorted by relevance
     */
@@ -27,6 +22,4 @@ public:
 private:
     std::vector<RelativeIndex> process_query(std::vector<std::string>& words, int responses_limit = 0);
     static std::vector<std::string> query_to_words(const std::string& query);
-
-    InvertedIndex _index;
 };

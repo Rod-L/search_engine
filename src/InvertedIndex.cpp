@@ -1,5 +1,6 @@
 #include "InvertedIndex.h"
 #include "HTTPTextFetcher.h"
+#include "GlobalLocks.h"
 
 //// Entry struct
 
@@ -22,148 +23,202 @@ InvertedIndex::InvertedIndex(const InvertedIndex& other) {
     freq_dictionary = other.freq_dictionary;
 }
 
-const std::vector<std::string>& InvertedIndex::get_loaded_docs() const  {
-    return docs;
+const std::vector<DocInfo> &InvertedIndex::get_docs_info() const {
+    return docs_info;
 }
 
 bool InvertedIndex::docs_loaded(const std::vector<std::string>& input_docs) const {
-    return docs == input_docs;
+    auto size = input_docs.size();
+    if (docs_info.size() != size) return false;
+    for (int i = 0; i < size; ++i) {
+        if (docs_info[i].filepath != input_docs[i]) return false;
+    }
+    return true;
 }
 
 void InvertedIndex::extend_document_base(const std::vector<std::string>& input_docs) {
     std::map<size_t,std::pair<std::string,std::thread*>> docs_by_id;
-    size_t next_doc_id = docs.size();
 
-    for (auto& doc : input_docs) {
-        size_t doc_id;
-        for (doc_id = 0; doc_id < docs.size(); ++doc_id) {
-            if (docs[doc_id] == doc) break;
-        }
+    GlobalLocks::cout.lock();
 
-        if (doc_id < docs.size()) {
-            flush_doc_index(doc_id);
-            docs_by_id[doc_id] = {doc, nullptr};
-        } else {
-            docs_by_id[next_doc_id] = {doc, nullptr};
-            ++next_doc_id;
+    if (docs_info.empty()) {
+        auto size = input_docs.size();
+        for (int i = 0; i < size; ++i) docs_by_id[i] = {input_docs[i], nullptr};
+        docs_info.resize(size);
+    } else {
+        size_t next_doc_id = docs_info.size();
+        for (auto &doc: input_docs) {
+            size_t doc_id;
+            for (doc_id = 0; doc_id < docs_info.size(); ++doc_id) {
+                if (docs_info[doc_id].filepath == doc) break;
+            }
+
+            if (doc_id < docs_info.size()) {
+                if (docs_info[doc_id].indexing_in_progress) {
+                    std::cout << "Indexing of document '" << doc << "' is already in progress." << std::endl;
+                    continue;
+                }
+                flush_doc_index(doc_id);
+                docs_by_id[doc_id] = {doc, nullptr};
+            } else {
+                docs_by_id[next_doc_id] = {doc, nullptr};
+                ++next_doc_id;
+            }
         }
+        docs_info.resize(next_doc_id);
     }
 
-    docs.resize(next_doc_id);
+    if (docs_by_id.empty()) {
+        GlobalLocks::cout.unlock();
+        return;
+    }
+
     std::vector<std::thread> threads;
     threads.reserve(input_docs.size());
+    std::cout << "Starting indexation of " << docs_by_id.size() << " files." << std::endl;
 
-    std::vector<std::string> loading_errors;
-    loading_errors.resize(docs.size());
+    GlobalLocks::cout.unlock();
+
     for (auto& pair : docs_by_id) {
-        threads.emplace_back(&InvertedIndex::add_document, this, pair.first, pair.second.first, std::ref(loading_errors));
+        threads.emplace_back(&InvertedIndex::add_document, this, pair.first, pair.second.first);
         pair.second.second = &threads.back();
+        auto& doc_info = docs_info[pair.first];
+        doc_info.indexed = false;
+        doc_info.indexing_in_progress = true;
     }
 
+    int loaded_count = 0;
     for (auto& pair : docs_by_id) {
-        std::cout << "Processing doc #" << pair.first << ": " << pair.second.first << std::endl;
         auto thread_ptr = pair.second.second;
         if (thread_ptr->joinable()) thread_ptr->join();
-
-        std::string& err_str = loading_errors[pair.first];
-        std::cout << (err_str.empty() ? "Success" : err_str) << std::endl;
+        if (!docs_info[pair.first].indexing_error) ++loaded_count;
     }
+    GlobalLocks::cout.lock();
+    std::cout << "Database updated, documents loaded: " << loaded_count << std::endl;
+    GlobalLocks::cout.unlock();
 }
 
 void InvertedIndex::update_document_base(const std::vector<std::string>& input_docs) {
-    clear();
-    docs.resize(input_docs.size());
-
-    std::vector<std::string> loading_errors;
-    loading_errors.resize(input_docs.size());
-
-    std::vector<std::thread> threads;
-    threads.reserve(input_docs.size());
-
-    for (size_t doc_id = 0; doc_id < input_docs.size(); ++doc_id) {
-        threads.emplace_back(&InvertedIndex::add_document, this, doc_id, input_docs[doc_id], std::ref(loading_errors));
-    }
-
-    int loading_id = 0;
-    int loaded_count = 0;
-    for (auto& thread : threads) {
-        std::cout << "Processing doc #" << loading_id << ": " << input_docs[loading_id] << std::endl;
-        if (thread.joinable()) thread.join();
-        if (!loading_errors[loading_id].empty()) {
-            std::cout << loading_errors[loading_id] << std::endl;
-        } else {
-            ++loaded_count;
+    for (auto& doc_info : docs_info) {
+        if (doc_info.indexing_in_progress) {
+            GlobalLocks::cout.lock();
+            std::cout << "Active indexation tasks detected, full update aborted.\n"
+                         "Wait until all current tasks are finished and repeat command." << std::endl;
+            GlobalLocks::cout.unlock();
+            return;
         }
-        ++loading_id;
     }
-    std::cout << "Database updated, documents loaded: " << loaded_count << std::endl;
+
+    clear();
+    extend_document_base(input_docs);
 }
 
 void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
     clear();
-    docs.reserve(input_texts.size());
+    docs_info.resize(input_texts.size());
 
     std::vector<std::thread> threads;
     threads.reserve(input_texts.size());
 
     for (int i = 0; i < input_texts.size(); ++i) {
-        auto doc = std::to_string(i);
-        docs.push_back(doc);
+        auto& doc_info = docs_info[i];
+        doc_info.filepath = std::to_string(i);
         threads.emplace_back(&InvertedIndex::add_text, this, static_cast<size_t>(i), input_texts[i]);
+
+        doc_info.indexed = false;
+        doc_info.indexing_in_progress = true;
     }
 
     for (auto& thread : threads) {
         if (thread.joinable()) thread.join();
     }
-    std::cout << "Database updated, texts loaded: " << docs.size() << std::endl;
+    std::cout << "Database updated, texts loaded: " << docs_info.size() << std::endl;
 }
 
-bool InvertedIndex::add_document(size_t doc_id, const std::string& filename, std::vector<std::string>& loading_errors) {
+void InvertedIndex::report_indexation_finish(const std::string& filename, const DocInfo& doc_info) {
+    GlobalLocks::cout.lock();
+    std::cout << "'" << filename << "' processed:";
+    if (doc_info.indexing_error) {
+        std::cout << std::endl << doc_info.error_text << std::endl;
+    } else {
+        std::cout << " success." << std::endl;
+    }
+    GlobalLocks::cout.unlock();
+}
+
+bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
+    auto& doc_info = docs_info[doc_id];
+    doc_info.filepath = filename;
+    doc_info.error_text.clear();
+    std::stringstream error_str;
+
+    auto set_info = [&doc_info](bool indexed, bool in_progress, bool error) {
+        doc_info.indexed = indexed;
+        doc_info.indexing_error = error;
+        doc_info.indexing_in_progress = in_progress;
+        doc_info.index_date = std::time(nullptr);
+    };
+
+    set_info(false, true, false);
 
     if (HTTPFetcher::is_url(filename)) {
+        doc_info.from_url = true;
         auto text = HTTPFetcher::get_text(filename);
         if (text.empty()) {
-            std::stringstream error_str;
             error_str << "add_document failed: could not fetch content from url '" << filename << "'.";
-            loading_errors[doc_id] = error_str.str();
-            return false;
+        } else {
+            std::stringstream content(text);
+            index_doc(doc_id, content);
         }
-        std::stringstream content(text);
-        index_doc(doc_id, content);
-
     } else {
+        doc_info.from_url = false;
         std::ifstream file(filename);
         if (!file.is_open()) {
-            std::stringstream error_str;
             error_str << "add_document failed: could not open file '" << filename << "'.";
-            loading_errors[doc_id] = error_str.str();
-            return false;
+        } else {
+            index_doc(doc_id, file);
+            file.close();
         }
-
-        index_doc(doc_id, file);
-        file.close();
     }
 
-    docs_access.lock();
-    docs[doc_id] = filename;
-    docs_access.unlock();
-    return true;
+    if (doc_info.indexing_error) {
+        doc_info.error_text = error_str.str();
+        set_info(false, false, true);
+    } else {
+        set_info(true, false, false);
+    }
+
+    report_indexation_finish(filename, doc_info);
+    return !doc_info.indexing_error;
 }
 
 bool InvertedIndex::add_text(size_t doc_id, const std::string& text) {
+    auto& doc_info = docs_info[doc_id];
+    doc_info.indexing_in_progress = true;
+
     std::stringstream content(text);
     index_doc2(doc_id, content);
+
+    doc_info.error_text.clear();
+    doc_info.indexing_error = false;
+    doc_info.indexing_in_progress = false;
+    doc_info.indexed = true;
+    doc_info.index_date = std::time(nullptr);
     return true;
 }
 
 std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
     std::vector<Entry> result;
+    freq_dict_access.lock();
     auto entries = freq_dictionary.find(word);
+    freq_dict_access.unlock();
 
     if (entries == freq_dictionary.end()) return result;
 
+    entries->second.access.lock();
     result.reserve(entries->second.index.size());
     for (auto& pair : entries->second.index) result.push_back(pair.second);
+    entries->second.access.unlock();
 
     return result;
 }
@@ -172,7 +227,7 @@ std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
 
 void InvertedIndex::clear() {
     freq_dictionary.clear();
-    docs.clear();
+    docs_info.clear();
 }
 
 void InvertedIndex::flush_doc_index(size_t doc_id) {
@@ -284,7 +339,7 @@ void InvertedIndex::index_doc2(size_t doc_id, StreamT& stream) {
 #define PUT_NUM(STREAM, TYPENAME, VAL) {TYPENAME buf = static_cast<TYPENAME>(VAL); STREAM.write((char*)(&buf), sizeof(TYPENAME));};
 
 int InvertedIndex::dump_num_size() const {
-    size_t n = docs.size();
+    size_t n = docs_info.size();
     for (auto& word_index : freq_dictionary) {
         for (auto& entry : word_index.second.index) n = std::max(n, entry.second.count);
     }
@@ -312,9 +367,9 @@ void InvertedIndex::dump_index(std::ofstream& output) const {
 
 template<typename uint>
 void InvertedIndex::internal_dump_index(std::ofstream& output) const {
-    PUT_NUM(output, uint, docs.size());
+    PUT_NUM(output, uint, docs_info.size());
 
-    for (auto& doc : docs) output << doc << '\0';
+    for (auto& doc_info : docs_info) output << doc_info.filepath << '\0';
 
     PUT_NUM(output, uint, freq_dictionary.size());
     for (auto& word_index : freq_dictionary) {
@@ -361,9 +416,12 @@ template<typename uint>
 bool InvertedIndex::internal_load_index(std::ifstream& input) {
 
     READ_NUM(input, uint, docs_amount);
-    docs.resize(docs_amount);
+    docs_info.resize(docs_amount);
 
-    for (uint i = 0; i < docs_amount; ++i) std::getline(input, docs[i], '\0');
+    for (uint i = 0; i < docs_amount; ++i) {
+        docs_info[i].indexed = true;
+        std::getline(input, docs_info[i].filepath, '\0');
+    }
 
     READ_NUM(input, uint, dict_size);
 

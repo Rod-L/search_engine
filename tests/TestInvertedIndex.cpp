@@ -133,7 +133,6 @@ TEST_CASE("InvertedIndex_IndexationPerfomance") {
 
     InvertedIndex idx;
     for (int i = 0; i < 10; ++i) {
-        idx.clear();
         idx.update_document_base(docs);
     }
 }

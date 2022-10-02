@@ -304,3 +304,50 @@ void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers,
     file.close();
     std::cout << "Results have been written to '" << filepath << "'" << std::endl;
 }
+
+void ConverterJSON::files_status(const std::string& filename, const std::vector<DocInfo>& docs_info) const {
+    nlohmann::json status;
+
+    status["in_config"] = json::array();
+    status["in_base"] = json::array();
+    status["id_mismatch"] = json::array();
+
+    status["indexed"] = json::array();
+    status["indexing_in_progress"] = json::array();
+    status["indexing_error"] = json::array();
+    status["from_url"] = json::array();
+    status["index_date"] = json::array();
+    status["error_text"] = json::array();
+    status["filepath"] = json::array();
+
+    int border = std::max(files.size(), docs_info.size());
+    for (int i = 0; i < border; ++i) {
+        bool in_config = i < files.size();
+        bool in_base = i < docs_info.size();
+        bool id_mismatch = false;
+
+        auto& doc_info = docs_info[i];
+        if (in_config && in_base) id_mismatch = files[i] != doc_info.filepath;
+
+        status["in_config"][i] = in_config;
+        status["in_base"][i] = in_base;
+        status["id_mismatch"][i] = id_mismatch;
+
+        status["indexed"][i] = doc_info.indexed;
+        status["indexing_in_progress"][i] = doc_info.indexing_in_progress;
+        status["indexing_error"][i] = doc_info.indexing_error;
+        status["from_url"][i] = doc_info.from_url;
+        status["index_date"][i] = doc_info.index_date;
+        status["error_text"][i] = doc_info.error_text;
+        status["filepath"][i] = doc_info.filepath;
+    }
+
+    std::ofstream file(filename);
+    if (file.is_open()) {
+        file << status.dump(2);
+        file.close();
+        std::cout << "Status report saved to '" << filename << "'." << std::endl;
+    } else {
+        std::cerr << "Could not open file '" << filename << "'." << std::endl;
+    }
+}

@@ -2,7 +2,7 @@
 #include "InvertedIndex.h"
 #include "SearchEngine.h"
 
-void FillDB(InvertedIndex& indexer) {
+void FillDB(SearchServer& server) {
     std::string doc, content;
 
     std::vector<std::string> texts = {
@@ -11,14 +11,12 @@ void FillDB(InvertedIndex& indexer) {
             "Word1 Word1 Word2 Word4"
     };
 
-    indexer.update_text_base(texts);
+    server.update_text_base(texts);
 }
 
 TEST_CASE("SearchEngine_Search_1") {
-    InvertedIndex indexer;
-    FillDB(indexer);
-
-    SearchServer server(indexer);
+    SearchServer server;
+    FillDB(server);
     std::vector<std::string> queries{"Word1"};
     auto result = server.search(queries);
 
@@ -34,10 +32,8 @@ TEST_CASE("SearchEngine_Search_1") {
 }
 
 TEST_CASE("SearchEngine_Search_2") {
-    InvertedIndex indexer;
-    FillDB(indexer);
-
-    SearchServer server(indexer);
+    SearchServer server;
+    FillDB(server);
     std::vector<std::string> queries{"Word4 Word1 Word1", "Word3"};
     auto result = server.search(queries);
 
@@ -69,9 +65,9 @@ TEST_CASE("SearchEngine_Search_3") {
             {
             }
     };
-    InvertedIndex idx;
-    idx.update_text_base(docs);
-    SearchServer srv(idx);
+
+    SearchServer srv;
+    srv.update_text_base(docs);
     std::vector<std::vector<RelativeIndex>> result = srv.search(request);
     REQUIRE(result == expected);
 }
@@ -112,9 +108,9 @@ TEST_CASE("SearchEngine_Search_Top5") {
                     {2, 0.666666687}
             }
     };
-    InvertedIndex idx;
-    idx.update_text_base(docs);
-    SearchServer srv(idx);
+
+    SearchServer srv;
+    srv.update_text_base(docs);
 
     std::vector<std::vector<RelativeIndex>> result = srv.search(request, 5);
 
