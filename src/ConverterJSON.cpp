@@ -2,6 +2,52 @@
 
 using json = nlohmann::json;
 
+ConverterJSON::ConverterJSON(std::string config_file) {
+    config_filepath = config_file;
+    config_catalog = PathHelper::catalog_from_filepath(config_file);
+    config_name = PathHelper::file_name(config_file);
+
+    std::ifstream requests_file("requests.json");
+    if (!requests_file.is_open()) {
+        std::ofstream def_requests("requests.json");
+        json requests = {
+                {"requests", {"request1", "request2", "request3"}}
+        };
+        def_requests << requests.dump(2);
+        def_requests.close();
+    } else {
+        requests_file.close();
+    }
+
+    std::ifstream file(config_filepath);
+    if (file.is_open()) {
+        bool loaded = load_config_file(file, config_filepath);
+        file.close();
+        if (!loaded) {
+            std::cout << "'" << config_filepath << "' is invalid, update and reload configuration file." << std::endl;
+        }
+        return;
+    }
+
+    std::ofstream new_config(config_filepath);
+    if (!new_config.is_open()) {
+        throw std::runtime_error(
+                "Executable directory does not contain valid 'config.json' file.\n"
+                "Could not create default file on startup. Create the file and restart the program.");
+    }
+
+    auto def_config_json = ConverterJSON::default_config();
+    load_config_json(def_config_json);
+
+    int indentLevel = 2;
+    new_config << def_config_json.dump(indentLevel);
+    new_config.close();
+
+    std::cout<< "Executable directory does not contain valid 'config.json' file.\n"
+                "Template file have been created." << std::endl;
+
+}
+
 bool ConverterJSON::check_json_file(std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
@@ -58,7 +104,12 @@ void ConverterJSON::load_config_json(json& config) {
     files.clear();
     files.reserve(config["files"].size());
     for (auto& filename : config["files"]) {
-        files.push_back(filename);
+        config_files.push_back(filename);
+        if (relative_to_config_folder && PathHelper::is_relative(filename)) {
+            files.push_back(PathHelper::combine(config_catalog, filename));
+        } else {
+            files.push_back(filename);
+        }
     }
 
     if (files.empty()) {
@@ -68,6 +119,8 @@ void ConverterJSON::load_config_json(json& config) {
 
     auto& settings = config["config"];
     responses_limit = settings.contains("max_responses") ? static_cast<int>(settings["max_responses"]) : 5;
+    max_indexation_threads = settings.contains("max_indexation_threads") ? static_cast<int>(settings["max_indexation_threads"]) : 8;
+    relative_to_config_folder = settings.contains("relative_to_config_folder") && settings["relative_to_config_folder"];
     auto_reindex = settings.contains("auto_reindex") && settings["auto_reindex"];
     auto_dump_index = settings.contains("auto_dump_index") && settings["auto_dump_index"];
     auto_load_index_dump = settings.contains("auto_load_index_dump") && settings["auto_load_index_dump"];
@@ -90,56 +143,17 @@ bool ConverterJSON::load_config_file(std::ifstream& file, std::string& filepath)
     if (!parsed) return false;
 
     if (config_json_valid(config)) {
+        config_filepath = filepath;
+        config_catalog = PathHelper::catalog_from_filepath(filepath);
+        config_name = PathHelper::file_name(filepath);
+
         load_config_json(config);
         std::cout << "Config loaded from '" << filepath << "', " << files.size() << " documents listed." << std::endl;
-        config_filepath = filepath;
         return true;
     }
 
     std::cout << filepath << " is not valid configuration file for search engine." << std::endl;
     return false;
-}
-
-ConverterJSON::ConverterJSON(std::string config_file): config_filepath(config_file) {
-    std::ifstream requests_file("requests.json");
-    if (!requests_file.is_open()) {
-        std::ofstream def_requests("requests.json");
-        json requests = {
-                {"requests", {"request1", "request2", "request3"}}
-        };
-        def_requests << requests.dump(2);
-        def_requests.close();
-    } else {
-        requests_file.close();
-    }
-
-    std::ifstream file(config_filepath);
-    if (file.is_open()) {
-        bool loaded = load_config_file(file, config_filepath);
-        file.close();
-        if (!loaded) {
-            std::cout << "'" << config_filepath << "' is invalid, update and reload configuration file." << std::endl;
-        }
-        return;
-    }
-
-    std::ofstream new_config(config_filepath);
-    if (!new_config.is_open()) {
-        throw std::runtime_error(
-            "Executable directory does not contain valid 'config.json' file.\n"
-            "Could not create default file on startup. Create the file and restart the program.");
-    }
-
-    auto def_config_json = ConverterJSON::default_config();
-    load_config_json(def_config_json);
-
-    int indentLevel = 2;
-    new_config << def_config_json.dump(indentLevel);
-    new_config.close();
-
-    std::cout<< "Executable directory does not contain valid 'config.json' file.\n"
-                "Template file have been created." << std::endl;
-
 }
 
 bool ConverterJSON::reload_config_file(std::string& filepath) {
@@ -161,12 +175,14 @@ void ConverterJSON::save_config_file(std::string& filepath) const {
             {"name", "SkillboxSearchEngine"},
             {"version", "0.1"},
             {"max_responses", responses_limit},
-            {"auto_dump_index", true},
-            {"auto_load_index_dump", true},
-            {"auto_reindex", false}
+            {"max_indexation_threads", max_indexation_threads},
+            {"auto_dump_index", auto_dump_index},
+            {"auto_load_index_dump", auto_load_index_dump},
+            {"auto_reindex", auto_reindex},
+            {"relative_to_config_folder", relative_to_config_folder}
     };
 
-    config["files"] = files;
+    config["files"] = config_files;
     int IndentLevel = 2;
     file << config.dump(IndentLevel);
     file.close();
@@ -179,7 +195,12 @@ json ConverterJSON::default_config() {
     config["config"] = {
             {"name", "SkillboxSearchEngine"},
             {"version", "0.1"},
-            {"max_responses", 5}
+            {"max_responses", 5},
+            {"max_indexation_threads", 8},
+            {"auto_dump_index", true},
+            {"auto_load_index_dump", true},
+            {"auto_reindex", false},
+            {"relative_to_config_folder", true}
     };
 
     config["files"] = json::array();
@@ -215,6 +236,10 @@ bool ConverterJSON::text_documents_from_json(const std::string& filepath, std::v
 
 int ConverterJSON::get_responses_limit() const {
     return responses_limit;
+}
+
+int ConverterJSON::get_threads_limit() const {
+    return max_indexation_threads;
 }
 
 std::vector<std::string> ConverterJSON::get_requests(const std::string& filepath) {
@@ -305,9 +330,10 @@ void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers,
     std::cout << "Results have been written to '" << filepath << "'" << std::endl;
 }
 
-void ConverterJSON::files_status(const std::string& filename, const std::vector<DocInfo>& docs_info) const {
-    nlohmann::json status;
+void init_status_json(json& status) {
+    status["timestamp"] = std::time(nullptr);
 
+    status["doc_id"] = json::array();
     status["in_config"] = json::array();
     status["in_base"] = json::array();
     status["id_mismatch"] = json::array();
@@ -319,35 +345,71 @@ void ConverterJSON::files_status(const std::string& filename, const std::vector<
     status["index_date"] = json::array();
     status["error_text"] = json::array();
     status["filepath"] = json::array();
+}
+
+void ConverterJSON::add_status_entry(json& status, int line_id, size_t doc_id, const std::vector<DocInfo>& docs_info) const {
+    bool in_config = doc_id < files.size();
+    bool in_base = doc_id < docs_info.size();
+    bool id_mismatch = false;
+
+    if (!in_config && !in_base) return;
+    if (in_config && in_base) id_mismatch = files[doc_id] != docs_info[doc_id].filepath;
+
+    status["in_config"][line_id] = in_config;
+    status["in_base"][line_id] = in_base;
+    status["id_mismatch"][line_id] = id_mismatch;
+    status["doc_id"][line_id] = doc_id;
+
+    if (in_base) {
+        auto& doc_info = docs_info[doc_id];
+        status["indexed"][line_id] = doc_info.indexed;
+        status["indexing_in_progress"][line_id] = doc_info.indexing_in_progress;
+        status["indexing_error"][line_id] = doc_info.indexing_error;
+        status["from_url"][line_id] = doc_info.from_url;
+        status["index_date"][line_id] = doc_info.index_date;
+        status["error_text"][line_id] = doc_info.error_text;
+        status["filepath"][line_id] = doc_info.filepath;
+    } else {
+        status["indexed"][line_id] = false;
+        status["indexing_in_progress"][line_id] = false;
+        status["indexing_error"][line_id] = false;
+        status["from_url"][line_id] = false;
+        status["index_date"][line_id] = 0;
+        status["error_text"][line_id] = "";
+        status["filepath"][line_id] = files[doc_id];
+    }
+}
+
+void ConverterJSON::write_status_report(const json& report, const std::string& filepath) const {
+    std::ofstream file(filepath);
+    if (file.is_open()) {
+        file << report.dump(2);
+        file.close();
+        std::cout << "Status report saved to '" << filepath << "'." << std::endl;
+    } else {
+        std::cerr << "Could not open file '" << filepath << "'." << std::endl;
+    }
+}
+
+void ConverterJSON::files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const {
+    nlohmann::json status;
+    init_status_json(status);
+
+    for (int i = 0; i < ids.size(); ++i) {
+        add_status_entry(status, i, ids[i], docs_info);
+    }
+
+    write_status_report(status, filepath);
+}
+
+void ConverterJSON::files_status(const std::string& filepath, const std::vector<DocInfo>& docs_info) const {
+    nlohmann::json status;
+    init_status_json(status);
 
     int border = std::max(files.size(), docs_info.size());
     for (int i = 0; i < border; ++i) {
-        bool in_config = i < files.size();
-        bool in_base = i < docs_info.size();
-        bool id_mismatch = false;
-
-        auto& doc_info = docs_info[i];
-        if (in_config && in_base) id_mismatch = files[i] != doc_info.filepath;
-
-        status["in_config"][i] = in_config;
-        status["in_base"][i] = in_base;
-        status["id_mismatch"][i] = id_mismatch;
-
-        status["indexed"][i] = doc_info.indexed;
-        status["indexing_in_progress"][i] = doc_info.indexing_in_progress;
-        status["indexing_error"][i] = doc_info.indexing_error;
-        status["from_url"][i] = doc_info.from_url;
-        status["index_date"][i] = doc_info.index_date;
-        status["error_text"][i] = doc_info.error_text;
-        status["filepath"][i] = doc_info.filepath;
+        add_status_entry(status, i, i, docs_info);
     }
 
-    std::ofstream file(filename);
-    if (file.is_open()) {
-        file << status.dump(2);
-        file.close();
-        std::cout << "Status report saved to '" << filename << "'." << std::endl;
-    } else {
-        std::cerr << "Could not open file '" << filename << "'." << std::endl;
-    }
+    write_status_report(status, filepath);
 }

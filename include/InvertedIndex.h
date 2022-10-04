@@ -33,13 +33,13 @@ public:
     InvertedIndex(const InvertedIndex& other);
 
 
-    void extend_document_base(const std::vector<std::string>& input_docs);
+    void extend_document_base(const std::vector<std::string>& input_docs, int max_threads);
 
     /**
     * Fill and index database from files
     * @param input_docs list of filenames
     */
-    void update_document_base(const std::vector<std::string>& input_docs);
+    void update_document_base(const std::vector<std::string>& input_docs, int max_threads);
 
     /**
     * Fill and index database from files
@@ -83,8 +83,6 @@ public:
     bool load_index(std::ifstream& input);
 
     bool docs_loaded(const std::vector<std::string>& input_docs) const;
-
-    const std::vector<std::string>& get_loaded_docs() const;
 
     const std::vector<DocInfo>& get_docs_info() const;
 

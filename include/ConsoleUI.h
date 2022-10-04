@@ -4,30 +4,31 @@
 
 #include "ConverterJSON.h"
 #include "SearchEngine.h"
+#include "PathHelper.h"
 
 struct ConsoleCommand {
     int code;
     std::string name;
     std::string description;
 
-    void (*func)();
+    void (*func)(std::string&);
 };
 
 namespace ConsoleUI {
     ConverterJSON converter;
     SearchServer server;
 
-    void show_help();
+    void show_help(std::string& params);
     bool file_exist(const std::string& filepath);
     bool load_backed_index(std::string& filepath);
     void reload_config(std::string &filepath);
     void form_index();
     void process_requests(std::string &filepath);
-    std::string input_filepath();
-    std::string catalog_from_filepath(const std::string& filepath);
     std::string index_path(const std::string& config_path);
+    std::string service_file_path(const std::string& name);
     void reindex_files();
-    void init_commands(std::map<std::string, void (*)()> &map);
+    std::vector<size_t> parse_ids(std::string& str_ids);
+    void init_commands(std::map<std::string, void (*)(std::string&)> &map);
 }
 
 bool ConsoleUI::file_exist(const std::string& filepath) {
@@ -49,12 +50,21 @@ bool ConsoleUI::load_backed_index(std::string& filepath) {
     return loaded;
 }
 
+std::string ConsoleUI::service_file_path(const std::string& name) {
+    std::stringstream path;
+    path << ConsoleUI::converter.get_config_catalog();
+    path << ConsoleUI::converter.get_config_name();
+    path << "." << name;
+    return path.str();
+}
+
 std::string ConsoleUI::index_path(const std::string& config_path) {
-    return catalog_from_filepath(config_path) + "index.bin";
+    std::string name = "index.bin";
+    return service_file_path(name);
 }
 
 void ConsoleUI::reindex_files() {
-    server.update_document_base(converter.get_text_documents());
+    server.update_document_base(converter.get_text_documents(), converter.get_threads_limit());
 
     if (!ConsoleUI::converter.autodump_enabled()) {
         std::cout << "Auto dump disabled. Dump index manually, using 'DumpIndex' command, if necessary." << std::endl;
@@ -70,6 +80,21 @@ void ConsoleUI::reindex_files() {
     } else {
         std::cout << "Could not open file '" << index_path << "' to dump index to." << std::endl;
     }
+}
+
+std::vector<size_t> ConsoleUI::parse_ids(std::string &str_ids) {
+    std::stringstream params_parser(str_ids);
+    std::string doc_id_str;
+    std::vector<size_t> ids;
+    while (params_parser >> doc_id_str) {
+        try {
+            size_t doc_id = std::stoll(doc_id_str);
+            ids.push_back(doc_id);
+        } catch(...) {
+            std::cerr << "Invalid doc id '" << doc_id_str << "' passed to command." << std::endl;
+        }
+    }
+    return ids;
 }
 
 void ConsoleUI::form_index() {
@@ -115,29 +140,19 @@ void ConsoleUI::process_requests(std::string& filepath) {
     if (empty_filepath) filepath = "requests.json";
 
     auto requests = ConverterJSON::get_requests(filepath);
+    if (requests.empty()) return;
+
     auto results = server.search(requests, converter.get_responses_limit());
+    if (results.empty()) return;
 
     if (empty_filepath) {
         filepath = "answers.json";
         converter.put_answers(results, filepath);
     } else {
-        std::string answers_path = catalog_from_filepath(filepath);
+        std::string answers_path = PathHelper::catalog_from_filepath(filepath);
         answers_path.append("answers.json");
         converter.put_answers(results, answers_path);
     }
-}
-
-std::string ConsoleUI::catalog_from_filepath(const std::string& filepath) {
-    auto slash_pos = filepath.rfind('/');
-    if (slash_pos == std::string::npos) return "";
-    return filepath.substr(0, slash_pos + 1);
-}
-
-std::string ConsoleUI::input_filepath() {
-    std::string filepath;
-    std::cin >> std::ws;
-    std::getline(std::cin, filepath);
-    return filepath;
 }
 
 ConsoleCommand CONSOLE_COMMANDS[] = {
@@ -145,7 +160,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 1,
                 "ProcessRequests",
                 "process 'requests.json' file in executable directory, results will be stored in 'answers.json' in executable directory;",
-                []() {
+                [](std::string& params) {
                     std::string filepath;
                     ConsoleUI::process_requests(filepath);
                 }
@@ -157,16 +172,15 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   Examples:\n"
                 "   2 ../folder_name/filename.json\n"
                 "   ProcessRequestsFrom C:/folder_name/filename.json",
-                []() {
-                    std::string filepath = ConsoleUI::input_filepath();
-                    ConsoleUI::process_requests(filepath);
+                [](std::string& params) {
+                    ConsoleUI::process_requests(params);
                 }
         },
         {
                 3,
                 "ReloadConfig",
                 "reload last loaded 'config.json';",
-                []() {
+                [](std::string& params) {
                     std::string filepath;
                     ConsoleUI::reload_config(filepath);
                 }
@@ -178,9 +192,8 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   Examples:\n"
                 "   4 filename.json\n"
                 "   ReloadConfigFrom C:/filename.json",
-                []() {
-                    std::string filepath = ConsoleUI::input_filepath();
-                    ConsoleUI::reload_config(filepath);
+                [](std::string& params) {
+                    ConsoleUI::reload_config(params);
                 }
         },
         {
@@ -190,9 +203,8 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   Examples:\n"
                 "   5 filename.json\n"
                 "   SaveConfigTo C:/filename.json",
-                []() {
-                    std::string filepath = ConsoleUI::input_filepath();
-                    if (!filepath.empty()) ConsoleUI::converter.save_config_file(filepath);
+                [](std::string& params) {
+                    if (!params.empty()) ConsoleUI::converter.save_config_file(params);
                 }
         },
         {
@@ -202,16 +214,15 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   Examples:\n"
                 "   6 filename.json\n"
                 "   CheckFile C:/filename.json",
-                []() {
-                    std::string filepath = ConsoleUI::input_filepath();
-                    ConverterJSON::check_json_file(filepath);
+                [](std::string& params) {
+                    ConverterJSON::check_json_file(params);
                 }
         },
         {
                 7,
                 "DumpIndex",
                 "dump index into file for future reload. Creates 'index.bin' in directory of current loaded configuration file.",
-                []() {
+                [](std::string& params) {
                     std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
                     std::ofstream file(index_path);
                     if (file.is_open()) {
@@ -227,7 +238,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 8,
                 "LoadIndex",
                 "attempts to load index from 'index.bin' in directory of current loaded configuration file.",
-                []() {
+                [](std::string& params) {
                     std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
                     std::ifstream file(index_path);
                     if (file.is_open()) {
@@ -247,52 +258,73 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   Examples:\n"
                 "   9 filename.json\n"
                 "   ExtendIndex C:/folder name/filename.json",
-                []() {
-                    auto filepath = ConsoleUI::input_filepath();
+                [](std::string& params) {
                     auto func = [](std::string filepath) {
                         std::vector<std::string> files;
                         if (!ConverterJSON::text_documents_from_json(filepath, files)) return;
-                        ConsoleUI::server.extend_document_base(files);
+                        ConsoleUI::server.extend_document_base(files, ConsoleUI::converter.get_threads_limit());
                     };
-                    std::thread(func, filepath).detach();
+                    std::thread(func, params).detach();
                 }
         },
         {
                 10,
                 "ReindexFiles",
                 "clear current index and reindex files from loaded configuration files.",
-                []() {
+                [](std::string& params) {
                     std::thread(&ConsoleUI::reindex_files).detach();
                 }
         },
         {
                 11,
                 "ReindexFile",
-                "takes id of file from loaded configuration file as parameter, attempts to reindex it.",
-                []() {
-                    //TODO
+                "takes document id as parameter (or few ids separated by spaces), attempts to reindex it.",
+                [](std::string& params) {
+                    auto ids = ConsoleUI::parse_ids(params);
+                    if (ids.empty()) return;
+
+                    auto func = [](std::vector<size_t> ids) {
+                        std::vector<std::string> files;
+                        files.reserve(ids.size());
+                        auto all_files = ConsoleUI::converter.get_text_documents();
+                        for (auto& doc_id : ids) {
+                            if (doc_id < all_files.size()) files.push_back(all_files[doc_id]);
+                        }
+                        ConsoleUI::server.extend_document_base(files, ConsoleUI::converter.get_threads_limit());
+                    };
+                    std::thread(func, ids).detach();
                 }
         },
         {
                 12,
-                "FilesStatus",
+                "BaseStatus",
                 "saves status of loaded/listed files to 'status.json' to directory of last loaded config.",
-                []() {
-                    auto filepath = ConsoleUI::converter.get_config_path();
-                    auto catalog = ConsoleUI::catalog_from_filepath(filepath);
-                    auto status_path = catalog + "status.json";
-                    ConsoleUI::converter.files_status(status_path, ConsoleUI::server.get_docs_info());
+                [](std::string& params) {
+                    std::string name = "status.json";
+                    ConsoleUI::converter.files_status(ConsoleUI::service_file_path(name), ConsoleUI::server.get_docs_info());
                 }
         },
         {
                 13,
+                "FileStatus",
+                "takes document id as parameter (or few ids separated by spaces), saves its status to 'status_part.json' to directory of last loaded config.",
+                [](std::string& params) {
+                    auto ids = ConsoleUI::parse_ids(params);
+                    if (ids.empty()) return;
+
+                    std::string name = "status_part.json";
+                    ConsoleUI::converter.files_status_by_ids(ConsoleUI::service_file_path(name), ConsoleUI::server.get_docs_info(), ids);
+                }
+        },
+        {
+                14,
                 "Help",
                 "show this list",
                 ConsoleUI::show_help
         },
 };
 
-void ConsoleUI::show_help() {
+void ConsoleUI::show_help(std::string& params) {
     std::cout << "Use numeric code or name of the command to execute it.\n"
                  "Commands are listed below in format [numeric code] - [name] - [description].\n"
                  "\n"
@@ -306,7 +338,7 @@ void ConsoleUI::show_help() {
     }
 }
 
-void ConsoleUI::init_commands(std::map<std::string, void (*)()> &map) {
+void ConsoleUI::init_commands(std::map<std::string, void (*)(std::string&)> &map) {
     for (auto &command: CONSOLE_COMMANDS) {
         map[command.name] = command.func;
         map[std::to_string(command.code)] = command.func;

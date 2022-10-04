@@ -36,7 +36,7 @@ bool InvertedIndex::docs_loaded(const std::vector<std::string>& input_docs) cons
     return true;
 }
 
-void InvertedIndex::extend_document_base(const std::vector<std::string>& input_docs) {
+void InvertedIndex::extend_document_base(const std::vector<std::string>& input_docs, int max_threads) {
     std::map<size_t,std::pair<std::string,std::thread*>> docs_by_id;
 
     GlobalLocks::cout.lock();
@@ -79,12 +79,25 @@ void InvertedIndex::extend_document_base(const std::vector<std::string>& input_d
 
     GlobalLocks::cout.unlock();
 
+    auto max_threads_reached = [this, &docs_by_id, max_threads](){
+        int count = 0;
+        for (auto& pair : docs_by_id) {
+            if (docs_info[pair.first].indexing_in_progress) ++count;
+            if (count >= max_threads) {
+                return true;
+            }
+        }
+        return false;
+    };
+
     for (auto& pair : docs_by_id) {
-        threads.emplace_back(&InvertedIndex::add_document, this, pair.first, pair.second.first);
-        pair.second.second = &threads.back();
         auto& doc_info = docs_info[pair.first];
         doc_info.indexed = false;
         doc_info.indexing_in_progress = true;
+
+        threads.emplace_back(&InvertedIndex::add_document, this, pair.first, pair.second.first);
+        pair.second.second = &threads.back();
+        if (max_threads_reached()) threads.back().join();
     }
 
     int loaded_count = 0;
@@ -93,12 +106,19 @@ void InvertedIndex::extend_document_base(const std::vector<std::string>& input_d
         if (thread_ptr->joinable()) thread_ptr->join();
         if (!docs_info[pair.first].indexing_error) ++loaded_count;
     }
+
+    int total_docs = 0;
+    for (auto& doc_info : docs_info) {
+        if (doc_info.indexed) ++total_docs;
+    }
+
     GlobalLocks::cout.lock();
-    std::cout << "Database updated, documents loaded: " << loaded_count << std::endl;
+    std::cout << "Indexation finished, documents loaded: " << loaded_count
+              << " (total documents in database: " << total_docs << ")" << std::endl;
     GlobalLocks::cout.unlock();
 }
 
-void InvertedIndex::update_document_base(const std::vector<std::string>& input_docs) {
+void InvertedIndex::update_document_base(const std::vector<std::string>& input_docs, int max_threads) {
     for (auto& doc_info : docs_info) {
         if (doc_info.indexing_in_progress) {
             GlobalLocks::cout.lock();
@@ -110,7 +130,7 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
     }
 
     clear();
-    extend_document_base(input_docs);
+    extend_document_base(input_docs, max_threads);
 }
 
 void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
@@ -165,6 +185,7 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
         doc_info.from_url = true;
         auto text = HTTPFetcher::get_text(filename);
         if (text.empty()) {
+            doc_info.indexing_error = true;
             error_str << "add_document failed: could not fetch content from url '" << filename << "'.";
         } else {
             std::stringstream content(text);
@@ -174,6 +195,7 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
         doc_info.from_url = false;
         std::ifstream file(filename);
         if (!file.is_open()) {
+            doc_info.indexing_error = true;
             error_str << "add_document failed: could not open file '" << filename << "'.";
         } else {
             index_doc(doc_id, file);

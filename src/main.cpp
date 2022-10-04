@@ -4,15 +4,21 @@
 #include "ConsoleUI.h"
 
 int main() {
-    std::map<std::string, void(*)()> commands;
+    std::map<std::string, void(*)(std::string&)> commands;
     ConsoleUI::init_commands(commands);
     ConsoleUI::form_index();
 
     std::cout << "Enter 'Help' to get list of commands." << std::endl;
+    std::string line;
     std::string command;
+    std::string params;
 
     while (true) {
-        std::cin >> command;
+        std::getline(std::cin, line);
+        std::stringstream parser(line);
+        parser >> command;
+        parser >> std::ws;
+        std::getline(parser, params);
 
         auto func = commands.find(command);
         if (func == commands.end()) {
@@ -25,10 +31,7 @@ int main() {
             continue;
         }
 
-        func->second();
-//        auto size = std::cin.rdbuf()->in_avail();
-//        std::cin.ignore(size);
-//        std::cin.clear();
+        func->second(params);
     }
 }
 

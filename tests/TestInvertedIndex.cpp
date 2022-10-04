@@ -104,8 +104,8 @@ TEST_CASE("InvertedIndex_IndexExtension") {
     };
 
     InvertedIndex idx;
-    idx.extend_document_base(docs1);
-    idx.extend_document_base(docs2);
+    idx.extend_document_base(docs1, 4);
+    idx.extend_document_base(docs2, 4);
 }
 
 TEST_CASE("InvertedIndex_IndexationPerfomance") {

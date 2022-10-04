@@ -8,6 +8,7 @@
 #include "nlohmann/json.hpp"
 #include "RelativeIndex.h"
 #include "DocInfoStruct.h"
+#include "PathHelper.h"
 
 class ConverterJSON {
 
@@ -50,6 +51,11 @@ public:
     int get_responses_limit() const;
 
     /**
+    * @return max amount of threads to use for files indexation ('max_indexation_threads' field from last loaded 'config.json')
+    */
+    int get_threads_limit() const;
+
+    /**
     * @param filepath path to file to load requests from, if empty string passed, 'requests.json' will be used
     * @return list of queries from 'requests.json'
     */
@@ -70,6 +76,12 @@ public:
     const std::string& get_config_path() const {
         return config_filepath;
     };
+    const std::string& get_config_catalog() const {
+        return config_catalog;
+    };
+    const std::string& get_config_name() const {
+        return config_name;
+    };
 
     void add_files(const std::vector<std::string>& new_files) {
         for (auto& name : new_files) {
@@ -78,7 +90,9 @@ public:
         }
     };
 
-    void files_status(const std::string& filename, const std::vector<DocInfo>& docs_info) const;
+    void files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const;
+
+    void files_status(const std::string& filepath, const std::vector<DocInfo>& docs_info) const;
 
     bool autoreindex_enabled() {
         return auto_reindex;
@@ -95,15 +109,25 @@ public:
 private:
     /** Contains maximum amount of responses */
     int responses_limit;
+
+    /** Indexation threads amount limit */
+    int max_indexation_threads;
+
     /** Contains name of loaded config file */
     std::string config_filepath;
+    std::string config_catalog;
+    std::string config_name; // no extension
+
     /** Contains text document names loaded from config file */
+    std::vector<std::string> config_files;
+    /** Contains converted document names loaded from config file */
     std::vector<std::string> files;
 
     /** flags loaded from config file */
     bool auto_reindex;
     bool auto_dump_index;
     bool auto_load_index_dump;
+    bool relative_to_config_folder;
 
     /** @return true if passed json fits 'requests.json' format */
     static bool requests_json_valid(nlohmann::json& requests);
@@ -137,4 +161,8 @@ private:
     * @return default config in form of json object
     */
     static nlohmann::json default_config();
+
+    void write_status_report(const nlohmann::json& report, const std::string& filepath) const;
+
+    void add_status_entry(nlohmann::json& status, int line_id, size_t doc_id, const std::vector<DocInfo>& docs_info) const;
 };
