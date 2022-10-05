@@ -103,9 +103,12 @@ bool ConverterJSON::protected_parse_json(std::ifstream& file, json& acceptor, co
 void ConverterJSON::load_config_json(json& config) {
     files.clear();
     files.reserve(config["files"].size());
-    for (auto& filename : config["files"]) {
+    for (int doc_id = 0; doc_id < config["files"].size(); ++doc_id) {
+        std::string filename = config["files"][doc_id];
         config_files.push_back(filename);
-        if (relative_to_config_folder && PathHelper::is_relative(filename)) {
+        if (HTTPFetcher::is_url(filename)) {
+            files.push_back(filename);
+        } else if (relative_to_config_folder && PathHelper::is_relative(filename)) {
             files.push_back(PathHelper::combine(config_catalog, filename));
         } else {
             files.push_back(filename);
@@ -120,10 +123,15 @@ void ConverterJSON::load_config_json(json& config) {
     auto& settings = config["config"];
     responses_limit = settings.contains("max_responses") ? static_cast<int>(settings["max_responses"]) : 5;
     max_indexation_threads = settings.contains("max_indexation_threads") ? static_cast<int>(settings["max_indexation_threads"]) : 8;
-    relative_to_config_folder = settings.contains("relative_to_config_folder") && settings["relative_to_config_folder"];
-    auto_reindex = settings.contains("auto_reindex") && settings["auto_reindex"];
-    auto_dump_index = settings.contains("auto_dump_index") && settings["auto_dump_index"];
-    auto_load_index_dump = settings.contains("auto_load_index_dump") && settings["auto_load_index_dump"];
+
+    auto choose = [](const json& settings, const std::string& name){
+        return settings.contains(name) && settings[name];
+    };
+    auto_reindex = choose(settings, "auto_reindex");
+    auto_dump_index = choose(settings, "auto_dump_index");
+    auto_load_index_dump = choose(settings, "auto_load_index_dump");
+    store_html_web_files = choose(settings, "store_html_web_files");
+    relative_to_config_folder = choose(settings, "relative_to_config_folder");
 }
 
 bool ConverterJSON::load_config_file(std::string& filepath) {
@@ -179,6 +187,7 @@ void ConverterJSON::save_config_file(std::string& filepath) const {
             {"auto_dump_index", auto_dump_index},
             {"auto_load_index_dump", auto_load_index_dump},
             {"auto_reindex", auto_reindex},
+            {"store_html_web_files", store_html_web_files},
             {"relative_to_config_folder", relative_to_config_folder}
     };
 
@@ -200,7 +209,8 @@ json ConverterJSON::default_config() {
             {"auto_dump_index", true},
             {"auto_load_index_dump", true},
             {"auto_reindex", false},
-            {"relative_to_config_folder", true}
+            {"relative_to_config_folder", true},
+            {"store_html_web_files", false}
     };
 
     config["files"] = json::array();

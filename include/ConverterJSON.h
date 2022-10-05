@@ -9,6 +9,7 @@
 #include "RelativeIndex.h"
 #include "DocInfoStruct.h"
 #include "PathHelper.h"
+#include "HTTPTextFetcher.h"
 
 class ConverterJSON {
 
@@ -127,6 +128,7 @@ private:
     bool auto_reindex;
     bool auto_dump_index;
     bool auto_load_index_dump;
+    bool store_html_web_files;
     bool relative_to_config_folder;
 
     /** @return true if passed json fits 'requests.json' format */

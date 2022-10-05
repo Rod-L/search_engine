@@ -2,7 +2,8 @@
   "config": {
     "max_responses": 5,
     "name": "SkillboxSearchEngine",
-    "version": "0.1"
+    "version": "0.1",
+    "store_html_web_files": false
   },
   "files": [
     "https://www.imdb.com/title/tt0111161/",

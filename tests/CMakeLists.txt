@@ -19,7 +19,9 @@ add_executable(${TESTS_PROJECT_NAME}
         TestSearchEngine.cpp
         ../src/ConverterJSON.cpp
         ../src/InvertedIndex.cpp
-        ../src/SearchEngine.cpp)
+        ../src/SearchEngine.cpp
+        ../src/PathHelper.cpp
+        ../src/HTTPTextFetcher.cpp)
 
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE Catch2::Catch2WithMain)
 

@@ -1,5 +1,5 @@
 #include "InvertedIndex.h"
-#include "HTTPTextFetcher.h"
+#include "PathHelper.h"
 #include "GlobalLocks.h"
 
 //// Entry struct
@@ -181,26 +181,22 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
 
     set_info(false, true, false);
 
+    std::stringstream content;
+    bool have_text;
+
     if (HTTPFetcher::is_url(filename)) {
-        doc_info.from_url = true;
-        auto text = HTTPFetcher::get_text(filename);
-        if (text.empty()) {
-            doc_info.indexing_error = true;
-            error_str << "add_document failed: could not fetch content from url '" << filename << "'.";
-        } else {
-            std::stringstream content(text);
-            index_doc(doc_id, content);
-        }
+        std::string html;
+        have_text = HTTPFetcher::get_html(filename, html);
+        if (have_text) HTTPFetcher::get_text(html, content);
     } else {
-        doc_info.from_url = false;
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            doc_info.indexing_error = true;
-            error_str << "add_document failed: could not open file '" << filename << "'.";
-        } else {
-            index_doc(doc_id, file);
-            file.close();
-        }
+        have_text = PathHelper::get_text(filename, content);
+    }
+
+    if (have_text) {
+        index_doc(doc_id, content);
+    } else {
+        doc_info.indexing_error = true;
+        error_str << "add_document failed: could not fetch text from '" << filename << "'.";
     }
 
     if (doc_info.indexing_error) {
