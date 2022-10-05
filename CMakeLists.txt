@@ -40,6 +40,11 @@ FetchContent_MakeAvailable(cpr)
 target_link_libraries(${PROJECT_NAME} PRIVATE cpr::cpr)
 
 ##############################################
+# GUI
+
+add_subdirectory(gui)
+
+##############################################
 # Catch2 - uncomment for testing
 
 enable_testing()

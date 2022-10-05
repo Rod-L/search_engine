@@ -72,7 +72,7 @@ void ConsoleUI::reindex_files() {
     }
 
     std::string index_path = ConsoleUI::index_path(converter.get_config_path());
-    std::ofstream file(index_path);
+    std::ofstream file(index_path, std::ios::binary);
     if (file.is_open()) {
         ConsoleUI::server.dump_index(file);
         std::cout << "Index have been saved to '" << index_path << "'." << std::endl;
@@ -224,7 +224,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "dump index into file for future reload. Creates 'index.bin' in directory of current loaded configuration file.",
                 [](std::string& params) {
                     std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
-                    std::ofstream file(index_path);
+                    std::ofstream file(index_path, std::ios::binary);
                     if (file.is_open()) {
                         ConsoleUI::server.dump_index(file);
                         file.close();

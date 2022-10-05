@@ -133,7 +133,7 @@ TEST_CASE("InvertedIndex_IndexationPerfomance") {
 
     InvertedIndex idx;
     for (int i = 0; i < 10; ++i) {
-        idx.update_document_base(docs);
+        idx.update_document_base(docs, 8);
     }
 }
 
@@ -158,7 +158,7 @@ TEST_CASE("InvertedIndex_URLContent") {
     const std::string request = "Domain";
 
     InvertedIndex idx;
-    idx.update_document_base(docs);
+    idx.update_document_base(docs, 8);
 
     std::vector<Entry> word_count = idx.get_word_count(request);
     REQUIRE((word_count.empty() || word_count.size() == 1));

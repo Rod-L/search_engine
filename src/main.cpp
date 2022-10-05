@@ -3,7 +3,12 @@
 
 #include "ConsoleUI.h"
 
-int main() {
+int main(int argc, char *argv[]) {
+    std::cout << "Input params:" << std::endl;
+    std::cout << argc << std::endl;
+    for (int i = 0; i < argc; ++i) std::cout << argv[i] << std::endl;
+    std::cout << std::endl;
+
     std::map<std::string, void(*)(std::string&)> commands;
     ConsoleUI::init_commands(commands);
     ConsoleUI::form_index();
