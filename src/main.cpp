@@ -2,41 +2,103 @@
 #include <map>
 
 #include "ConsoleUI.h"
+#include "FilePipes.h"
 
+bool process_command_line(const std::string& line, const std::map<std::string, void(*)(std::string&)>& commands) {
+    std::string command;
+    std::string params;
+
+    std::stringstream parser(line);
+    parser >> command;
+    parser >> std::ws;
+    std::getline(parser, params);
+
+    auto func = commands.find(command);
+    if (func == commands.end()) {
+        if (command == "0" || command == "Exit") {
+            std::cout << "Exiting..." << std::endl;
+            return false;
+        }
+
+        std::cout << "Unknown command: " << command << std::endl;
+        return true;
+    }
+
+    func->second(params);
+    return true;
+}
+
+void command_line_mode(const std::string& path, const std::map<std::string, void(*)(std::string&)>& commands) {
+    std::string line;
+    ConsoleUI::converter.reload_config_file(path);
+    while (true) {
+        std::getline(std::cin, line);
+        std::cout << "Got command from cin: " << line << std::endl;
+        if (!process_command_line(line, commands)) return;
+    }
+}
+
+void filepipe_mode(const std::string& path, const std::map<std::string, void(*)(std::string&)>& commands) {
+    std::cout << "FILEPIPE mode started." << std::endl;
+    std::string line;
+    InputFilePipe ipipe(path);
+    while (true) {
+        if (ipipe >> line) {
+            std::stringstream pipe_commands(line);
+            std::string command;
+            while (!pipe_commands.eof()) {
+                std::getline(pipe_commands, command);
+                std::cout << "Got command from pipe: " << command << std::endl;
+                if (!process_command_line(command, commands)) return;
+            }
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+}
+
+/*
+Command line params:
+ [communication method] [filepath]
+
+ Method - CONSOLE, filepath - optional - path to config for initial load.
+ Method - FILEPIPE, filepath - required - path to pipe file to use for IPC.
+
+ default: CONSOLE config.json
+*/
 int main(int argc, char *argv[]) {
-    std::cout << "Input params:" << std::endl;
-    std::cout << argc << std::endl;
-    for (int i = 0; i < argc; ++i) std::cout << argv[i] << std::endl;
-    std::cout << std::endl;
+    std::string mode;
+    std::string path;
+
+    if (argc < 2) {
+        mode = "CONSOLE";
+        path = "config.json";
+    } else {
+        mode = argv[1];
+        if (mode == "CONSOLE") {
+            path = (argc > 2 ? argv[2] : "config.json");
+        } else if (mode == "FILEPIPE") {
+            if (argc < 3) {
+                std::cerr << "'FILEPIPE' working mode selected, but path to .pipe file have not been supplied!"
+                          << std::endl;
+                return 1;
+            }
+            path = argv[2];
+        } else {
+            std::cerr << "Unknown working mode supplied: " << mode << std::endl;
+            std::cerr << "Allowed modes are: CONSOLE, FILEPIPE" << std::endl;
+            return 1;
+        }
+    }
 
     std::map<std::string, void(*)(std::string&)> commands;
     ConsoleUI::init_commands(commands);
     ConsoleUI::form_index();
 
-    std::cout << "Enter 'Help' to get list of commands." << std::endl;
-    std::string line;
-    std::string command;
-    std::string params;
-
-    while (true) {
-        std::getline(std::cin, line);
-        std::stringstream parser(line);
-        parser >> command;
-        parser >> std::ws;
-        std::getline(parser, params);
-
-        auto func = commands.find(command);
-        if (func == commands.end()) {
-            if (command == "0" || command == "Exit") {
-                std::cout << "Exiting..." << std::endl;
-                return 0;
-            }
-
-            std::cout << "Unknown command: " << command << std::endl;
-            continue;
-        }
-
-        func->second(params);
+    if (mode == "CONSOLE") {
+        std::cout << "Enter 'Help' to get list of commands." << std::endl;
+        command_line_mode(path, commands);
+    } else {
+        filepipe_mode(path, commands);
     }
 }
 

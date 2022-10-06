@@ -21,7 +21,7 @@ namespace ConsoleUI {
     void show_help(std::string& params);
     bool file_exist(const std::string& filepath);
     bool load_backed_index(std::string& filepath);
-    void reload_config(std::string &filepath);
+    void reload_config(const std::string& filepath);
     void form_index();
     void process_requests(std::string &filepath);
     std::string index_path(const std::string& config_path);
@@ -129,7 +129,7 @@ void ConsoleUI::form_index() {
     ConsoleUI::reindex_files();
 }
 
-void ConsoleUI::reload_config(std::string &filepath) {
+void ConsoleUI::reload_config(const std::string &filepath) {
     if (converter.reload_config_file(filepath)) {
         form_index();
     }

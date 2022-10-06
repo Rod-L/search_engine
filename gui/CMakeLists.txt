@@ -7,7 +7,7 @@ set(GUI_PROJECT_NAME gui)
 ############################################
 # Build the test framework
 add_executable(gui
-        src/FilePipes.cpp
+        ../shared/src/FilePipes.cpp
         src/main.cpp)
 
 ##############################################
@@ -24,4 +24,4 @@ target_link_libraries(${GUI_PROJECT_NAME} PRIVATE cpr::cpr)
 
 ############################################
 
-target_include_directories(${GUI_PROJECT_NAME} PUBLIC include)
+target_include_directories(${GUI_PROJECT_NAME} PUBLIC include ../shared/include)

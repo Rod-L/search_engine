@@ -20,8 +20,9 @@ add_executable(${TESTS_PROJECT_NAME}
         ../src/ConverterJSON.cpp
         ../src/InvertedIndex.cpp
         ../src/SearchEngine.cpp
-        ../src/PathHelper.cpp
-        ../src/HTTPTextFetcher.cpp)
+        ../shared/src/FilePipes.cpp
+        ../shared/src/PathHelper.cpp
+        ../shared/src/HTTPTextFetcher.cpp)
 
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE Catch2::Catch2WithMain)
 
@@ -45,4 +46,4 @@ target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE cpr::cpr)
 ############################################
 
 
-target_include_directories(${TESTS_PROJECT_NAME} PUBLIC ../include)
+target_include_directories(${TESTS_PROJECT_NAME} PUBLIC ../include ../shared/include)

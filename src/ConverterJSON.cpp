@@ -164,7 +164,7 @@ bool ConverterJSON::load_config_file(std::ifstream& file, std::string& filepath)
     return false;
 }
 
-bool ConverterJSON::reload_config_file(std::string& filepath) {
+bool ConverterJSON::reload_config_file(const std::string& filepath) {
     if (!filepath.empty()) config_filepath = filepath;
     return load_config_file(config_filepath);
 }

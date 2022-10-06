@@ -28,7 +28,7 @@ public:
     * @param filepath - path to file to load config from. If empty string passed, file from 'config_filepath' object field will be loaded.
     * @return true if file was loaded successfully.
     */
-    bool reload_config_file(std::string& filepath);
+    bool reload_config_file(const std::string& filepath);
 
     /**
     * Saves configuration to file

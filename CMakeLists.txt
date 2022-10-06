@@ -10,10 +10,11 @@ add_executable(${PROJECT_NAME}
         src/ConverterJSON.cpp
         src/InvertedIndex.cpp
         src/SearchEngine.cpp
-        src/PathHelper.cpp
-        src/HTTPTextFetcher.cpp)
+        shared/src/FilePipes.cpp
+        shared/src/PathHelper.cpp
+        shared/src/HTTPTextFetcher.cpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC include)
+target_include_directories(${PROJECT_NAME} PUBLIC include shared/include)
 
 include(FetchContent)
 
