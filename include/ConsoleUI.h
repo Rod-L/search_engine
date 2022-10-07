@@ -64,9 +64,9 @@ std::string ConsoleUI::index_path(const std::string& config_path) {
 }
 
 void ConsoleUI::reindex_files() {
-    server.update_document_base(converter.get_text_documents(), converter.get_threads_limit());
+    server.update_document_base(converter.get_text_documents(), converter.max_indexation_threads);
 
-    if (!ConsoleUI::converter.autodump_enabled()) {
+    if (!ConsoleUI::converter.auto_dump_index) {
         std::cout << "Auto dump disabled. Dump index manually, using 'DumpIndex' command, if necessary." << std::endl;
         return;
     }
@@ -103,9 +103,8 @@ void ConsoleUI::form_index() {
 
     bool reindex_necessary = true;
 
-    if (file_exist(index_path) && !ConsoleUI::converter.dump_autoload_enabled()) {
+    if (file_exist(index_path) && !ConsoleUI::converter.auto_load_index_dump) {
         std::cout << "'" << index_path << "' detected, but dump auto load disabled. Load dump manually, using 'LoadIndex', if necessary." << std::endl;
-
     } else if (load_backed_index(index_path)) {
         if (ConsoleUI::server.docs_loaded(docs)) {
             reindex_necessary = false;
@@ -119,7 +118,7 @@ void ConsoleUI::form_index() {
 
     if (docs.empty()) return;
 
-    if (!ConsoleUI::converter.autoreindex_enabled()) {
+    if (!ConsoleUI::converter.auto_reindex) {
         std::cout << "Documents listed: " << docs.size() << ", documents loaded into base: " << server.get_docs_info().size() << std::endl;
         std::cout << "Auto reindex disabled. Start reindex manually, using 'ReindexFiles', if necessary." << std::endl;
         return;
@@ -142,7 +141,7 @@ void ConsoleUI::process_requests(std::string& filepath) {
     auto requests = ConverterJSON::get_requests(filepath);
     if (requests.empty()) return;
 
-    auto results = server.search(requests, converter.get_responses_limit());
+    auto results = server.search(requests, converter.responses_limit);
     if (results.empty()) return;
 
     if (empty_filepath) {
@@ -244,7 +243,12 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                     if (file.is_open()) {
                         ConsoleUI::server.load_index(file);
                         file.close();
-                        std::cout << "Index have been loaded from '" << index_path << "'." << std::endl;
+                        if (ConsoleUI::server.docs_loaded(ConsoleUI::converter.get_text_documents())) {
+                            std::cout << "Index have been loaded from '" << index_path << "'." << std::endl;
+                        } else {
+                            ConsoleUI::server.clear_index();
+                            std::cout << "Index from '" << index_path << "' does not match files listed in configuration file." << std::endl;
+                        }
                     } else {
                         std::cerr << "Could not open file '" << index_path << "'." << std::endl;
                     }
@@ -262,7 +266,8 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                     auto func = [](std::string filepath) {
                         std::vector<std::string> files;
                         if (!ConverterJSON::text_documents_from_json(filepath, files)) return;
-                        ConsoleUI::server.extend_document_base(files, ConsoleUI::converter.get_threads_limit());
+                        ConsoleUI::server.extend_document_base(files, ConsoleUI::converter.max_indexation_threads);
+                        ConsoleUI::converter.add_files(files);
                     };
                     std::thread(func, params).detach();
                 }
@@ -290,7 +295,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                         for (auto& doc_id : ids) {
                             if (doc_id < all_files.size()) files.push_back(all_files[doc_id]);
                         }
-                        ConsoleUI::server.extend_document_base(files, ConsoleUI::converter.get_threads_limit());
+                        ConsoleUI::server.extend_document_base(files, ConsoleUI::converter.max_indexation_threads);
                     };
                     std::thread(func, ids).detach();
                 }
@@ -318,6 +323,19 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
         },
         {
                 14,
+                "AddFile",
+                "takes filepath as parameter, adds it to the list of files. Does not start reindexing.",
+                [](std::string& params) {
+                    if (PathHelper::file_exist(params)) {
+                        ConsoleUI::converter.add_file(params);
+                        std::cout << "File '" << params << "' have been added." << std::endl;
+                    } else {
+                        std::cerr << "Could not open file '" << params << "'." << std::endl;
+                    }
+                }
+        },
+        {
+                15,
                 "Help",
                 "show this list",
                 ConsoleUI::show_help

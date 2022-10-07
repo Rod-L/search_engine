@@ -17,9 +17,9 @@ bool HTTPFetcher::get_html(const std::string& url, std::string& acceptor) {
 
 void HTTPFetcher::get_text(const std::string& html, std::stringstream& acceptor) {
     std::stringstream input;
-    std::stringstream output;
-
     input.str(html);
+
+    acceptor.str("");
 
     std::string buf;
     while(!input.eof()) {

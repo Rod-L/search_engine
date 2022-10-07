@@ -14,7 +14,24 @@
 class ConverterJSON {
 
 public:
-    explicit ConverterJSON(std::string config_file = "config.json");
+    /** Contains maximum amount of responses */
+    int responses_limit;
+
+    /** Indexation threads amount limit */
+    int max_indexation_threads;
+
+    /** flags loaded from config file */
+    bool auto_reindex;
+    bool auto_dump_index;
+    bool auto_load_index_dump;
+    bool store_html_web_files;
+    bool relative_to_config_folder;
+
+    ConverterJSON() = default;
+
+    explicit ConverterJSON(const std::string& config_file);
+
+    void create_templates();
 
     /**
     * Checks whether file is supported by search engine or not. Sends status info to std::cout
@@ -47,16 +64,6 @@ public:
     static bool text_documents_from_json(const std::string& filepath, std::vector<std::string>& acceptor);
 
     /**
-    * @return max amount of responses for one request ('max_responses' field from last loaded 'config.json')
-    */
-    int get_responses_limit() const;
-
-    /**
-    * @return max amount of threads to use for files indexation ('max_indexation_threads' field from last loaded 'config.json')
-    */
-    int get_threads_limit() const;
-
-    /**
     * @param filepath path to file to load requests from, if empty string passed, 'requests.json' will be used
     * @return list of queries from 'requests.json'
     */
@@ -67,12 +74,9 @@ public:
     */
     void put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const;
 
-    /**
-    * @return max amount of responses for one request ('max_responses' field from last loaded 'config.json')
-    */
-    void set_responses_limit(int limit) {
-        responses_limit = limit;
-    };
+    void files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const;
+
+    void files_status(const std::string& filepath, const std::vector<DocInfo>& docs_info) const;
 
     const std::string& get_config_path() const {
         return config_filepath;
@@ -84,35 +88,27 @@ public:
         return config_name;
     };
 
-    void add_files(const std::vector<std::string>& new_files) {
-        for (auto& name : new_files) {
-            auto exist = std::find(files.begin(), files.end(), name);
-            if (exist == files.end()) files.push_back(name);
+    size_t add_file(const std::string& filepath) {
+        size_t doc_id;
+        for (doc_id = 0; doc_id < config_files.size(); ++doc_id) {
+            if (filepath == config_files[doc_id]) {
+                break;
+            }
         }
+
+        if (doc_id == config_files.size()) {
+            config_files.push_back(filepath);
+            files.push_back(filepath);
+        }
+
+        return doc_id;
     };
 
-    void files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const;
-
-    void files_status(const std::string& filepath, const std::vector<DocInfo>& docs_info) const;
-
-    bool autoreindex_enabled() {
-        return auto_reindex;
-    }
-
-    bool autodump_enabled() {
-        return auto_dump_index;
-    }
-
-    bool dump_autoload_enabled() {
-        return auto_load_index_dump;
-    }
+    void add_files(const std::vector<std::string>& new_files) {
+        for (auto& name : new_files) add_file(name);
+    };
 
 private:
-    /** Contains maximum amount of responses */
-    int responses_limit;
-
-    /** Indexation threads amount limit */
-    int max_indexation_threads;
 
     /** Contains name of loaded config file */
     std::string config_filepath;
@@ -123,13 +119,6 @@ private:
     std::vector<std::string> config_files;
     /** Contains converted document names loaded from config file */
     std::vector<std::string> files;
-
-    /** flags loaded from config file */
-    bool auto_reindex;
-    bool auto_dump_index;
-    bool auto_load_index_dump;
-    bool store_html_web_files;
-    bool relative_to_config_folder;
 
     /** @return true if passed json fits 'requests.json' format */
     static bool requests_json_valid(nlohmann::json& requests);
@@ -146,7 +135,7 @@ private:
     void load_config_json(nlohmann::json& config);
 
     /** Loads configuration by filepath, if one exist and fits 'config.json' format */
-    bool load_config_file(std::string& filepath);
+    bool load_config_file(const std::string& filepath);
 
     /**
     * Loads configuration from file, if one fits 'config.json' format
@@ -154,7 +143,7 @@ private:
     * @param filepath - path to file being loaded, used for status/error messages
     * @return true, if config file was loaded successfully
     * */
-    bool load_config_file(std::ifstream& file, std::string& filepath);
+    bool load_config_file(std::ifstream& file, const std::string& filepath);
 
     nlohmann::json prepare_responses_list(std::vector<RelativeIndex> list) const;
 

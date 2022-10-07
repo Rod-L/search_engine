@@ -13,6 +13,8 @@ bool process_command_line(const std::string& line, const std::map<std::string, v
     parser >> std::ws;
     std::getline(parser, params);
 
+    if (command.empty()) return true;
+
     auto func = commands.find(command);
     if (func == commands.end()) {
         if (command == "0" || command == "Exit") {
@@ -30,10 +32,12 @@ bool process_command_line(const std::string& line, const std::map<std::string, v
 
 void command_line_mode(const std::string& path, const std::map<std::string, void(*)(std::string&)>& commands) {
     std::string line;
+    ConsoleUI::converter.create_templates();
     ConsoleUI::converter.reload_config_file(path);
+    ConsoleUI::form_index();
+    std::cout << "Enter 'Help' to get list of commands." << std::endl;
     while (true) {
         std::getline(std::cin, line);
-        std::cout << "Got command from cin: " << line << std::endl;
         if (!process_command_line(line, commands)) return;
     }
 }
@@ -92,10 +96,8 @@ int main(int argc, char *argv[]) {
 
     std::map<std::string, void(*)(std::string&)> commands;
     ConsoleUI::init_commands(commands);
-    ConsoleUI::form_index();
 
     if (mode == "CONSOLE") {
-        std::cout << "Enter 'Help' to get list of commands." << std::endl;
         command_line_mode(path, commands);
     } else {
         filepipe_mode(path, commands);

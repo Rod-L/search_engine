@@ -53,6 +53,10 @@ OutputFilePipe::OutputFilePipe(const std::string& filepath) {
     message_id = 0;
 };
 
+OutputFilePipe::~OutputFilePipe() {
+    std::remove(pipe_filepath.c_str());
+};
+
 bool OutputFilePipe::operator<<(const std::string& content){
     std::ofstream pipe(pipe_filepath, std::ios::trunc);
     if (!pipe.is_open()) return false;

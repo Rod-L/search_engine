@@ -92,10 +92,13 @@ protected:
 private:
     const int _index_dump_version = 1;
 
+    std::mutex docs_access;
     std::vector<DocInfo> docs_info;
 
     std::mutex freq_dict_access;
     std::map<std::string, WordIndex> freq_dictionary;
+
+    bool indexation_in_progress() const;
 
     void flush_doc_index(size_t doc_id);
     void merge_dict(std::map<std::string, WordIndex>& destination, std::map<std::string, WordIndex>& source);

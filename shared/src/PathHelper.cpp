@@ -1,11 +1,17 @@
-#include <vector>
 #include "PathHelper.h"
 
 bool PathHelper::is_relative(const std::string &filepath) {
     return filepath.find(':') == std::string::npos;
 }
 
-std::string PathHelper::combine(const std::string& root, const std::string& relative) {
+bool PathHelper::file_exist(const std::string &filepath) {
+    std::ifstream file(filepath);
+    bool open = file.is_open();
+    if (open) file.close();
+    return open;
+}
+
+std::string PathHelper::combine_path(const std::string& root, const std::string& relative) {
     std::string part;
     std::vector<std::string> parts;
     std::stringstream parser(root);

@@ -2,11 +2,12 @@
 
 using json = nlohmann::json;
 
-ConverterJSON::ConverterJSON(std::string config_file) {
-    config_filepath = config_file;
-    config_catalog = PathHelper::catalog_from_filepath(config_file);
-    config_name = PathHelper::file_name(config_file);
+ConverterJSON::ConverterJSON(const std::string& config_file) {
+    load_config_file(config_file);
+}
 
+void ConverterJSON::create_templates() {
+    // requests.json
     std::ifstream requests_file("requests.json");
     if (!requests_file.is_open()) {
         std::ofstream def_requests("requests.json");
@@ -19,33 +20,28 @@ ConverterJSON::ConverterJSON(std::string config_file) {
         requests_file.close();
     }
 
-    std::ifstream file(config_filepath);
-    if (file.is_open()) {
-        bool loaded = load_config_file(file, config_filepath);
-        file.close();
-        if (!loaded) {
-            std::cout << "'" << config_filepath << "' is invalid, update and reload configuration file." << std::endl;
+    // config.json
+    std::ifstream config("config.json");
+    if (config.is_open()) {
+        config.close();
+    } else {
+        std::ofstream new_config("config.json");
+        if (!new_config.is_open()) {
+            throw std::runtime_error(
+                    "Executable directory does not contain valid 'config.json' file.\n"
+                    "Could not create default file on startup. Create the file and restart the program.");
         }
-        return;
+
+        auto def_config_json = ConverterJSON::default_config();
+        load_config_json(def_config_json);
+
+        int indentLevel = 2;
+        new_config << def_config_json.dump(indentLevel);
+        new_config.close();
+
+        std::cout<< "Executable directory does not contain valid 'config.json' file.\n"
+                    "Template file have been created." << std::endl;
     }
-
-    std::ofstream new_config(config_filepath);
-    if (!new_config.is_open()) {
-        throw std::runtime_error(
-                "Executable directory does not contain valid 'config.json' file.\n"
-                "Could not create default file on startup. Create the file and restart the program.");
-    }
-
-    auto def_config_json = ConverterJSON::default_config();
-    load_config_json(def_config_json);
-
-    int indentLevel = 2;
-    new_config << def_config_json.dump(indentLevel);
-    new_config.close();
-
-    std::cout<< "Executable directory does not contain valid 'config.json' file.\n"
-                "Template file have been created." << std::endl;
-
 }
 
 bool ConverterJSON::check_json_file(std::string& filepath) {
@@ -109,7 +105,7 @@ void ConverterJSON::load_config_json(json& config) {
         if (HTTPFetcher::is_url(filename)) {
             files.push_back(filename);
         } else if (relative_to_config_folder && PathHelper::is_relative(filename)) {
-            files.push_back(PathHelper::combine(config_catalog, filename));
+            files.push_back(PathHelper::combine_path(config_catalog, filename));
         } else {
             files.push_back(filename);
         }
@@ -134,7 +130,7 @@ void ConverterJSON::load_config_json(json& config) {
     relative_to_config_folder = choose(settings, "relative_to_config_folder");
 }
 
-bool ConverterJSON::load_config_file(std::string& filepath) {
+bool ConverterJSON::load_config_file(const std::string& filepath) {
     std::ifstream file(filepath);
     if (!file.is_open()) {
         std::cout << "Could not open '" << filepath << "' config file." << std::endl;
@@ -145,7 +141,7 @@ bool ConverterJSON::load_config_file(std::string& filepath) {
     return loaded;
 }
 
-bool ConverterJSON::load_config_file(std::ifstream& file, std::string& filepath) {
+bool ConverterJSON::load_config_file(std::ifstream& file, const std::string& filepath) {
     json config;
     bool parsed = ConverterJSON::protected_parse_json(file, config, filepath);
     if (!parsed) return false;
@@ -166,6 +162,10 @@ bool ConverterJSON::load_config_file(std::ifstream& file, std::string& filepath)
 
 bool ConverterJSON::reload_config_file(const std::string& filepath) {
     if (!filepath.empty()) config_filepath = filepath;
+    if (config_filepath.empty()) {
+        std::cerr << "Configuration file have not been selected." << std::endl;
+        return false;
+    }
     return load_config_file(config_filepath);
 }
 
@@ -233,23 +233,23 @@ bool ConverterJSON::text_documents_from_json(const std::string& filepath, std::v
     bool parsed = ConverterJSON::protected_parse_json(file, config, filepath);
     if (!parsed) return false;
 
-    if (!config_json_valid(config)) {
+    if (!ConverterJSON::config_json_valid(config)) {
         std::cout << "'" << filepath << "' is not valid config file." << std::endl;
         return false;
     }
 
+    bool relative_paths = config.contains("relative_to_config_folder") && config["relative_to_config_folder"];
+
     acceptor.reserve(config["files"].size());
-    for (auto& doc : config["files"]) acceptor.push_back(doc);
+    for (auto& doc : config["files"]) {
+        if (relative_paths && PathHelper::is_relative(doc)) {
+            acceptor.push_back(PathHelper::combine_path(filepath, doc));
+        } else {
+            acceptor.push_back(doc);
+        }
+    }
 
     return true;
-}
-
-int ConverterJSON::get_responses_limit() const {
-    return responses_limit;
-}
-
-int ConverterJSON::get_threads_limit() const {
-    return max_indexation_threads;
 }
 
 std::vector<std::string> ConverterJSON::get_requests(const std::string& filepath) {
@@ -351,7 +351,6 @@ void init_status_json(json& status) {
     status["indexed"] = json::array();
     status["indexing_in_progress"] = json::array();
     status["indexing_error"] = json::array();
-    status["from_url"] = json::array();
     status["index_date"] = json::array();
     status["error_text"] = json::array();
     status["filepath"] = json::array();
@@ -375,7 +374,6 @@ void ConverterJSON::add_status_entry(json& status, int line_id, size_t doc_id, c
         status["indexed"][line_id] = doc_info.indexed;
         status["indexing_in_progress"][line_id] = doc_info.indexing_in_progress;
         status["indexing_error"][line_id] = doc_info.indexing_error;
-        status["from_url"][line_id] = doc_info.from_url;
         status["index_date"][line_id] = doc_info.index_date;
         status["error_text"][line_id] = doc_info.error_text;
         status["filepath"][line_id] = doc_info.filepath;
@@ -383,7 +381,6 @@ void ConverterJSON::add_status_entry(json& status, int line_id, size_t doc_id, c
         status["indexed"][line_id] = false;
         status["indexing_in_progress"][line_id] = false;
         status["indexing_error"][line_id] = false;
-        status["from_url"][line_id] = false;
         status["index_date"][line_id] = 0;
         status["error_text"][line_id] = "";
         status["filepath"][line_id] = files[doc_id];

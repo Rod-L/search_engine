@@ -25,6 +25,5 @@ int main(int argc, char *argv[]) {
     std::cout << "Waiting for engine to finish job." << std::endl;
     if (engine.joinable()) engine.join();
     std::cout << "Exiting." << std::endl;
-    std::remove(pipe_name.c_str());
     return 0;
 }

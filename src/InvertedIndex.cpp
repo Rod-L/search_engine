@@ -14,9 +14,6 @@ WordIndex::WordIndex(const WordIndex& other) {
     index = other.index;
 };
 
-//// DocInfo struct
-
-
 //// InvertedIndex class
 
 InvertedIndex::InvertedIndex(const InvertedIndex& other) {
@@ -28,15 +25,29 @@ const std::vector<DocInfo> &InvertedIndex::get_docs_info() const {
 }
 
 bool InvertedIndex::docs_loaded(const std::vector<std::string>& input_docs) const {
-    auto size = input_docs.size();
-    if (docs_info.size() != size) return false;
+    auto size = docs_info.size();
     for (int i = 0; i < size; ++i) {
         if (docs_info[i].filepath != input_docs[i]) return false;
     }
     return true;
 }
 
+bool InvertedIndex::indexation_in_progress() const {
+    for (auto& doc_info : docs_info) {
+        if (doc_info.indexing_in_progress) return true;
+    }
+    return false;
+}
+
 void InvertedIndex::extend_document_base(const std::vector<std::string>& input_docs, int max_threads) {
+    if (indexation_in_progress()) {
+        GlobalLocks::cout.lock();
+        std::cout << "Active indexation tasks detected, update aborted.\n"
+                     "Wait until all current tasks are finished and repeat command." << std::endl;
+        GlobalLocks::cout.unlock();
+        return;
+    }
+
     std::map<size_t,std::pair<std::string,std::thread*>> docs_by_id;
 
     GlobalLocks::cout.lock();
@@ -119,14 +130,12 @@ void InvertedIndex::extend_document_base(const std::vector<std::string>& input_d
 }
 
 void InvertedIndex::update_document_base(const std::vector<std::string>& input_docs, int max_threads) {
-    for (auto& doc_info : docs_info) {
-        if (doc_info.indexing_in_progress) {
-            GlobalLocks::cout.lock();
-            std::cout << "Active indexation tasks detected, full update aborted.\n"
-                         "Wait until all current tasks are finished and repeat command." << std::endl;
-            GlobalLocks::cout.unlock();
-            return;
-        }
+    if (indexation_in_progress()) {
+        GlobalLocks::cout.lock();
+        std::cout << "Active indexation tasks detected, full update aborted.\n"
+                     "Wait until all current tasks are finished and repeat command." << std::endl;
+        GlobalLocks::cout.unlock();
+        return;
     }
 
     clear();
@@ -190,6 +199,9 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
         if (have_text) HTTPFetcher::get_text(html, content);
     } else {
         have_text = PathHelper::get_text(filename, content);
+        if (have_text && HTTPFetcher::is_html(filename)) {
+            HTTPFetcher::get_text(content.str(), content);
+        }
     }
 
     if (have_text) {

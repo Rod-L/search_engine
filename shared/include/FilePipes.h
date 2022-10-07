@@ -5,6 +5,7 @@
 
 class InputFilePipe {
 public:
+    InputFilePipe() = delete;
     InputFilePipe(const std::string& filepath);
     bool operator>>(std::string& to);
 private:
@@ -14,7 +15,11 @@ private:
 
 class OutputFilePipe {
 public:
-    OutputFilePipe(const std::string& filepath);
+    OutputFilePipe() = delete;
+    explicit OutputFilePipe(const std::string& filepath);
+    OutputFilePipe(const OutputFilePipe& other) = delete;
+    operator=(const OutputFilePipe& other) = delete;
+    ~OutputFilePipe();
     bool operator<<(const std::string& content);
 private:
     std::string pipe_filepath;
