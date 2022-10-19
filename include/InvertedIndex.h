@@ -7,6 +7,7 @@
 #include <sstream>
 #include <map>
 #include <ctime>
+#include <thread>
 #include <mutex>
 
 #include "DocInfoStruct.h"
@@ -28,18 +29,27 @@ struct WordIndex {
 
 class InvertedIndex {
 public:
+    int max_indexation_threads = 2;
+
     InvertedIndex() = default;
 
     InvertedIndex(const InvertedIndex& other);
 
+    ~InvertedIndex() {
+        if (indexation_handler_thread != nullptr) {
+            if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
+            delete indexation_handler_thread;
+        }
+    };
 
-    void extend_document_base(const std::vector<std::string>& input_docs, int max_threads);
+
+    void extend_document_base(const std::map<size_t,std::string>& docs_by_id, bool wait_for_completion = true);
 
     /**
     * Fill and index database from files
     * @param input_docs list of filenames
     */
-    void update_document_base(const std::vector<std::string>& input_docs, int max_threads);
+    void update_document_base(const std::vector<std::string>& input_docs, bool wait_for_completion = true);
 
     /**
     * Fill and index database from files
@@ -73,7 +83,7 @@ public:
     static std::vector<std::string> split_by_non_letters(std::string& word, int min_part_size = 2);
 
     /**Dumps index to given ostream for future save or inspect.*/
-    void dump_index(std::ofstream& output) const;
+    void dump_index(std::ofstream& output);
 
     /**
     * Attempts to load index from given istream.
@@ -86,11 +96,14 @@ public:
 
     const std::vector<DocInfo>& get_docs_info() const;
 
+    void remove_documents(const std::vector<size_t>& ids);
+
 protected:
     void clear();
 
 private:
-    const int _index_dump_version = 1;
+    bool interrupt_indexation = false;
+    const int _index_dump_version = 2;
 
     std::mutex docs_access;
     std::vector<DocInfo> docs_info;
@@ -98,19 +111,20 @@ private:
     std::mutex freq_dict_access;
     std::map<std::string, WordIndex> freq_dictionary;
 
-    bool indexation_in_progress() const;
+    bool indexation_handler_active = false;
+    std::vector<size_t> indexation_queue;
+    void indexation_queue_handler();
+    std::thread* indexation_handler_thread = nullptr;
+
+    int indexation_in_progress() const;
+    void wait_for_indexation(bool interrupt = false);
 
     void flush_doc_index(size_t doc_id);
-    void merge_dict(std::map<std::string, WordIndex>& destination, std::map<std::string, WordIndex>& source);
-
+    void rebase_doc_index(size_t old_id, size_t new_id);
     void count_word(std::string& word, size_t doc_id);
-    void count_word(std::map<std::string, WordIndex>& dict, std::string &word, size_t doc_id);
 
     template<typename StreamT>
     void index_doc(size_t doc_id, StreamT& stream);
-
-    template<typename StreamT>
-    void index_doc2(size_t doc_id, StreamT& stream);
 
     int dump_num_size() const;
 

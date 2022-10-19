@@ -24,7 +24,6 @@ public:
     bool auto_reindex;
     bool auto_dump_index;
     bool auto_load_index_dump;
-    bool store_html_web_files;
     bool relative_to_config_folder;
 
     ConverterJSON() = default;
@@ -72,7 +71,7 @@ public:
     /**
     * Writes results of requests to 'answers.json' file in the executable directory
     */
-    void put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const;
+    void put_answers(const std::vector<std::vector<RelativeIndex>>& answers, std::string& filepath) const;
 
     void files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const;
 
@@ -108,12 +107,22 @@ public:
         for (auto& name : new_files) add_file(name);
     };
 
+    void remove_files(const std::vector<size_t>& ids) {
+        std::vector<size_t> sorted_ids = ids;
+        std::sort(sorted_ids.begin(), sorted_ids.end(), std::greater<size_t>());
+        for (auto doc_id : sorted_ids) {
+            files.erase(files.begin() + doc_id);
+            config_files.erase(config_files.begin() + doc_id);
+        }
+    }
+
 private:
 
     /** Contains name of loaded config file */
     std::string config_filepath;
     std::string config_catalog;
     std::string config_name; // no extension
+    std::string project_name;
 
     /** Contains text document names loaded from config file */
     std::vector<std::string> config_files;
@@ -145,7 +154,7 @@ private:
     * */
     bool load_config_file(std::ifstream& file, const std::string& filepath);
 
-    nlohmann::json prepare_responses_list(std::vector<RelativeIndex> list) const;
+    nlohmann::json prepare_responses_list(const std::vector<RelativeIndex>& list) const;
 
     /**
     * Generates and returns default config.

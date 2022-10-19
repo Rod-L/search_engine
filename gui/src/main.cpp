@@ -1,29 +1,31 @@
 #include <iostream>
-#include <thread>
 #include <ctime>
-#include "FilePipes.h"
+
+#include <QApplication>
+
+#include "gui.h"
+#include "GUIWindow.h"
+#include "RemoteConfig.h"
+
+GUIWindow* MAIN_WINDOW;
+Ui_MainWindow* MAIN_UI;
+RemoteEngine* REMOTE = nullptr;
 
 int main(int argc, char *argv[]) {
-    std::string buf;
-    std::string pipe_name = "gui_" + std::to_string(std::time(nullptr)) + ".pipe";
-    OutputFilePipe opipe(pipe_name);
+    std::srand(std::time(nullptr));
 
-    auto remote = [pipe_name](){
-        std::string cmd = "search_engine.exe FILEPIPE " + pipe_name;
-        system(cmd.c_str());
-    };
-    std::thread engine(remote);
+    QApplication app(argc, argv);
+    MAIN_UI = new Ui_MainWindow;
+    REMOTE = new RemoteEngine(RemoteMode::Process);
+    MAIN_WINDOW = new GUIWindow(MAIN_UI, REMOTE, nullptr);
 
-    std::this_thread::sleep_for(std::chrono::seconds(8));
-    std::cout << "Sending 'content' to pipe." << std::endl;
-    opipe << "content";
-    std::this_thread::sleep_for(std::chrono::seconds(8));
-    std::cout << "Sending '0' to pipe." << std::endl;
-    opipe << "0";
-    std::this_thread::sleep_for(std::chrono::seconds(8));
+    MAIN_WINDOW->load_settings("gui.settings.json");
+    MAIN_WINDOW->show();
 
-    std::cout << "Waiting for engine to finish job." << std::endl;
-    if (engine.joinable()) engine.join();
-    std::cout << "Exiting." << std::endl;
-    return 0;
+    auto exec_result = app.exec();
+    MAIN_WINDOW->save_settings("gui.settings.json");
+
+    if (REMOTE != nullptr) delete REMOTE;
+    if (MAIN_UI != nullptr) delete MAIN_UI;
+    return exec_result;
 }

@@ -97,7 +97,21 @@ bool ConverterJSON::protected_parse_json(std::ifstream& file, json& acceptor, co
 }
 
 void ConverterJSON::load_config_json(json& config) {
+    auto& settings = config["config"];
+    project_name = settings["name"];
+    responses_limit = settings.contains("max_responses") ? static_cast<int>(settings["max_responses"]) : 5;
+    max_indexation_threads = settings.contains("max_indexation_threads") ? static_cast<int>(settings["max_indexation_threads"]) : 8;
+
+    auto choose = [](const json& settings, const std::string& name){
+        return settings.contains(name) && settings[name];
+    };
+    auto_reindex = choose(settings, "auto_reindex");
+    auto_dump_index = choose(settings, "auto_dump_index");
+    auto_load_index_dump = choose(settings, "auto_load_index_dump");
+    relative_to_config_folder = choose(settings, "relative_to_config_folder");
+
     files.clear();
+    config_files.clear();
     files.reserve(config["files"].size());
     for (int doc_id = 0; doc_id < config["files"].size(); ++doc_id) {
         std::string filename = config["files"][doc_id];
@@ -115,19 +129,6 @@ void ConverterJSON::load_config_json(json& config) {
         std::cout << "List of files to index in the 'config.json' is empty. "
                      "Update 'config.json' and run 'ReloadConfig' command." << std::endl;
     }
-
-    auto& settings = config["config"];
-    responses_limit = settings.contains("max_responses") ? static_cast<int>(settings["max_responses"]) : 5;
-    max_indexation_threads = settings.contains("max_indexation_threads") ? static_cast<int>(settings["max_indexation_threads"]) : 8;
-
-    auto choose = [](const json& settings, const std::string& name){
-        return settings.contains(name) && settings[name];
-    };
-    auto_reindex = choose(settings, "auto_reindex");
-    auto_dump_index = choose(settings, "auto_dump_index");
-    auto_load_index_dump = choose(settings, "auto_load_index_dump");
-    store_html_web_files = choose(settings, "store_html_web_files");
-    relative_to_config_folder = choose(settings, "relative_to_config_folder");
 }
 
 bool ConverterJSON::load_config_file(const std::string& filepath) {
@@ -180,14 +181,13 @@ void ConverterJSON::save_config_file(std::string& filepath) const {
 
     json config;
     config["config"] = {
-            {"name", "SkillboxSearchEngine"},
+            {"name", project_name},
             {"version", "0.1"},
             {"max_responses", responses_limit},
             {"max_indexation_threads", max_indexation_threads},
             {"auto_dump_index", auto_dump_index},
             {"auto_load_index_dump", auto_load_index_dump},
             {"auto_reindex", auto_reindex},
-            {"store_html_web_files", store_html_web_files},
             {"relative_to_config_folder", relative_to_config_folder}
     };
 
@@ -209,8 +209,7 @@ json ConverterJSON::default_config() {
             {"auto_dump_index", true},
             {"auto_load_index_dump", true},
             {"auto_reindex", false},
-            {"relative_to_config_folder", true},
-            {"store_html_web_files", false}
+            {"relative_to_config_folder", true}
     };
 
     config["files"] = json::array();
@@ -275,7 +274,7 @@ std::vector<std::string> ConverterJSON::get_requests(const std::string& filepath
     return result;
 }
 
-json ConverterJSON::prepare_responses_list(std::vector<RelativeIndex> list) const {
+json ConverterJSON::prepare_responses_list(const std::vector<RelativeIndex>& list) const {
     auto relevance = json::array();
     int responses_count = 0;
     for (auto& rel_index : list) {
@@ -286,7 +285,7 @@ json ConverterJSON::prepare_responses_list(std::vector<RelativeIndex> list) cons
     return relevance;
 }
 
-void ConverterJSON::put_answers(std::vector<std::vector<RelativeIndex>> answers, std::string& filepath) const {
+void ConverterJSON::put_answers(const std::vector<std::vector<RelativeIndex>>& answers, std::string& filepath) const {
     if (filepath.empty()) filepath = "answers.json";
 
     std::ofstream file(filepath);
@@ -372,11 +371,11 @@ void ConverterJSON::add_status_entry(json& status, int line_id, size_t doc_id, c
     if (in_base) {
         auto& doc_info = docs_info[doc_id];
         status["indexed"][line_id] = doc_info.indexed;
-        status["indexing_in_progress"][line_id] = doc_info.indexing_in_progress;
+        status["indexing_in_progress"][line_id] = doc_info.indexing_in_progress || doc_info.awaits_indexation;
         status["indexing_error"][line_id] = doc_info.indexing_error;
         status["index_date"][line_id] = doc_info.index_date;
         status["error_text"][line_id] = doc_info.error_text;
-        status["filepath"][line_id] = doc_info.filepath;
+        status["filepath"][line_id] = doc_info.filepath.empty() ? files[doc_id] : doc_info.filepath;
     } else {
         status["indexed"][line_id] = false;
         status["indexing_in_progress"][line_id] = false;

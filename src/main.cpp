@@ -44,19 +44,25 @@ void command_line_mode(const std::string& path, const std::map<std::string, void
 
 void filepipe_mode(const std::string& path, const std::map<std::string, void(*)(std::string&)>& commands) {
     std::cout << "FILEPIPE mode started." << std::endl;
+    std::cout << "pipe: " << path << std::endl;
     std::string line;
     InputFilePipe ipipe(path);
     while (true) {
-        if (ipipe >> line) {
-            std::stringstream pipe_commands(line);
-            std::string command;
-            while (!pipe_commands.eof()) {
-                std::getline(pipe_commands, command);
-                std::cout << "Got command from pipe: " << command << std::endl;
-                if (!process_command_line(command, commands)) return;
+        if (!ipipe.get(line)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            continue;
+        }
+
+        std::stringstream pipe_commands(line);
+        std::string command;
+        while (!pipe_commands.eof()) {
+            std::getline(pipe_commands, command);
+            if (!command.empty()) std::cout << "Got command from pipe: " << command << std::endl;
+            if (!process_command_line(command, commands)) {
+                std::remove(path.c_str());
+                return;
             }
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
 
@@ -102,6 +108,8 @@ int main(int argc, char *argv[]) {
     } else {
         filepipe_mode(path, commands);
     }
+
+    if (ConsoleUI::converter.auto_dump_index) ConsoleUI::dump_index();
 }
 
 

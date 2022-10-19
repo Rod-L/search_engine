@@ -1,8 +1,9 @@
 {
   "config": {
     "max_responses": 5,
-    "name": "SkillboxSearchEngine",
-    "version": "0.1"
+    "name": "SameDirectoryExample",
+    "version": "0.1",
+    "relative_to_config_folder": true
   },
   "files": ["Sample 1.txt", "Sample 2.txt", "Sample 3.txt"]
 }

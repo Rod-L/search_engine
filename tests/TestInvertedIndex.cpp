@@ -90,50 +90,39 @@ TEST_CASE("InvertedIndex_TestBasic2") {
 }
 
 TEST_CASE("InvertedIndex_IndexExtension") {
-    const std::vector<std::string> docs1 = {
-            "../examples/2/Sample 1.txt",
-            "../examples/2/Sample 2.txt",
-            "../examples/2/Sample 3.txt"
+    const std::map<size_t, std::string> docs1 = {
+            {0, "../examples/2/Sample 1.txt"},
+            {1, "../examples/2/Sample 2.txt"},
+            {2, "../examples/2/Sample 3.txt"}
     };
 
-    const std::vector<std::string> docs2 = {
-            "../examples/2/Sample 2.txt",
-            "../examples/1/Annotations/12 Angry men.txt",
-            "../examples/1/Annotations/Fight club.txt",
-            "../examples/1/Annotations/Forrest Gump.txt"
+    const std::map<size_t, std::string> docs2 = {
+            {1, "../examples/2/Sample 2.txt"},
+            {3, "../examples/1/Annotations/12 Angry men.txt"},
+            {4, "../examples/1/Annotations/Fight club.txt"},
+            {5, "../examples/1/Annotations/Forrest Gump.txt"}
     };
 
-    InvertedIndex idx;
-    idx.extend_document_base(docs1, 4);
-    idx.extend_document_base(docs2, 4);
+    for (int i = 0; i < 100; ++i) {
+        InvertedIndex idx;
+        idx.extend_document_base(docs1, true);
+        idx.extend_document_base(docs2, true);
+    }
 }
 
-TEST_CASE("InvertedIndex_IndexationPerfomance") {
+TEST_CASE("InvertedIndex_IndexationPerformance") {
     const std::vector<std::string> docs = {
-            "../Meyer David. Behemoth 1.txt",
-            "../Meyer David. Behemoth 2.txt",
+            "Meyer David. Behemoth 1.txt",
+            "Meyer David. Behemoth 2.txt",
             "../Meyer David. Behemoth 3.txt",
             "../Meyer David. Behemoth 4.txt",
             "../Meyer David. Behemoth 5.txt",
             "../Meyer David. Behemoth 6.txt",
-//            "../../examples/1/Annotations/12 Angry men.txt",
-//            "../../examples/1/Annotations/Fight club.txt",
-//            "../../examples/1/Annotations/Forrest Gump.txt",
-//            "../../examples/1/Annotations/Il buono, il brutto, il cattivo.txt",
-//            "../../examples/1/Annotations/Inception.txt",
-//            "../../examples/1/Annotations/Pulp Fiction.txt",
-//            "../../examples/1/Annotations/Schindler's List.txt",
-//            "../../examples/1/Annotations/The Dark Knight.txt",
-//            "../../examples/1/Annotations/The Godfather part II.txt",
-//            "../../examples/1/Annotations/The Godfather.txt",
-//            "../../examples/1/Annotations/The Lord of the Rings The Fellowship of the Ring.txt",
-//            "../../examples/1/Annotations/The Lord of the Rings The Return of the King.txt",
-//            "../../examples/1/Annotations/The Shawshank Redemption.txt"
     };
 
     InvertedIndex idx;
     for (int i = 0; i < 10; ++i) {
-        idx.update_document_base(docs, 8);
+        idx.update_document_base(docs, true);
     }
 }
 
@@ -158,7 +147,7 @@ TEST_CASE("InvertedIndex_URLContent") {
     const std::string request = "Domain";
 
     InvertedIndex idx;
-    idx.update_document_base(docs, 8);
+    idx.update_document_base(docs, true);
 
     std::vector<Entry> word_count = idx.get_word_count(request);
     REQUIRE((word_count.empty() || word_count.size() == 1));
