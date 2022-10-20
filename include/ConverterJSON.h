@@ -111,6 +111,7 @@ public:
         std::vector<size_t> sorted_ids = ids;
         std::sort(sorted_ids.begin(), sorted_ids.end(), std::greater<size_t>());
         for (auto doc_id : sorted_ids) {
+            if (doc_id >= files.size()) continue;
             files.erase(files.begin() + doc_id);
             config_files.erase(config_files.begin() + doc_id);
         }

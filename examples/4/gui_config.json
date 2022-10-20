@@ -1,0 +1,13 @@
+{
+  "config": {
+    "auto_dump_index": true,
+    "auto_load_index_dump": true,
+    "auto_reindex": false,
+    "max_indexation_threads": 5,
+    "max_responses": 5,
+    "name": "empty config",
+    "relative_to_config_folder": true,
+    "version": "0.1"
+  },
+  "files": []
+}

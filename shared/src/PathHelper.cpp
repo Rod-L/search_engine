@@ -1,31 +1,38 @@
 #include "PathHelper.h"
 
+std::string PathHelper::current_dir() {
+    auto path = std::filesystem::current_path();
+    return path.string();
+}
+
 bool PathHelper::is_relative(const std::string &filepath) {
     return filepath.find(':') == std::string::npos;
 }
 
 bool PathHelper::file_exist(const std::string &filepath) {
-    std::ifstream file(filepath);
-    bool open = file.is_open();
-    if (open) file.close();
-    return open;
+    std::filesystem::path path(filepath);
+    std::error_code err_code;
+
+    bool exist = std::filesystem::exists(path, err_code);
+    return exist;
 }
 
 std::string PathHelper::combine_path(const std::string& root, const std::string& relative) {
+    char div;
     std::string part;
     std::vector<std::string> parts;
     std::stringstream parser(root);
 
-    while(!parser.eof()) {
-        std::getline(parser, part, '/');
+    div = root.find("/") == std::string::npos ? '\\' : '/';
+    while(std::getline(parser, part, div)) {
         if (!part.empty()) parts.push_back(part);
     }
 
     parser.str(relative);
     parser.seekg(0);
     parser.clear();
-    while(!parser.eof()) {
-        std::getline(parser, part, '/');
+    div = relative.find("/") == std::string::npos ? '\\' : '/';
+    while(std::getline(parser, part, div)) {
         if (part == ".." && !parts.empty()) parts.pop_back();
         else parts.push_back(part);
     }

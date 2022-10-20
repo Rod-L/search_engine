@@ -325,8 +325,8 @@ void InvertedIndex::flush_doc_index(size_t doc_id) {
 }
 
 std::vector<std::string> InvertedIndex::split_by_non_letters(std::string& word, int min_part_size) {
-    auto is_letter = [](char v){
-        return v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z';
+    auto is_letter = [](unsigned char v){
+        return v >= 'a' && v <= 'z' || v >= 'A' && v <= 'Z' || v > 127;
     };
 
     std::vector<std::string> result;
@@ -375,7 +375,11 @@ void InvertedIndex::index_doc(size_t doc_id, StreamT& stream) {
     std::string word;
     while (stream >> word) {
         auto parts = InvertedIndex::split_by_non_letters(word);
-        for (auto& part : parts) count_word(part, doc_id);
+        if (parts.empty()) {
+            count_word(word, doc_id);
+        } else {
+            for (auto& part : parts) count_word(part, doc_id);
+        }
         if (interrupt_indexation) return;
     }
 }

@@ -1,0 +1,20 @@
+{
+  "config": {
+    "auto_dump_index": false,
+    "auto_load_index_dump": false,
+    "auto_reindex": false,
+    "max_indexation_threads": 2,
+    "max_responses": 5,
+    "name": "SkillboxSearchEngine",
+    "relative_to_config_folder": true,
+    "version": "0.1"
+  },
+  "files": [
+    "https://habr.com/ru/news/t/692476/",
+    "https://habr.com/ru/news/t/503658/",
+    "https://habr.com/ru/news/t/694392/",
+    "https://habr.com/ru/news/t/529764/",
+    "https://habr.com/ru/news/t/576644/",
+    "https://habr.com/ru/news/t/508972/"
+  ]
+}

@@ -3,7 +3,7 @@
 //// Class ProcessPipe
 
 ProcessPipe::ProcessPipe(const std::string& filepath) {
-    pipe_filepath = filepath;
+    executable_filepath = filepath;
 };
 
 ProcessPipe::~ProcessPipe() {
@@ -19,14 +19,24 @@ ProcessPipe::~ProcessPipe() {
 };
 
 bool ProcessPipe::send(const std::string& content) {
-    if (child_process == nullptr || child_process->state() == QProcess::ProcessState::NotRunning) {
-        if (child_process != nullptr) delete child_process;
-        if (pipe_filepath.empty()) return false;
+    if (executable_filepath.empty()) return false;
+
+    if (!executable_started) {
+        executable_started = true;
         child_process = new QProcess;
         child_process->setProcessChannelMode(QProcess::ForwardedChannels);
-        child_process->start(QString::fromStdString(pipe_filepath), {"CONSOLE"}, QIODevice::ReadWrite);
+        child_process->start(QString::fromStdString(executable_filepath), {"CONSOLE"}, QIODevice::ReadWrite);
         child_process->waitForStarted();
     }
+
+    executable_running = child_process->state() != QProcess::ProcessState::NotRunning;
+    if (!executable_running) {
+        std::string error_message = "Executable '";
+        error_message.append(executable_filepath);
+        error_message.append("' stopped working unexpectedly.");
+        throw std::runtime_error(error_message);
+    }
+
     child_process->write(content.c_str(), content.size());
     child_process->write("\n", 1);
     child_process->waitForBytesWritten();
@@ -36,28 +46,19 @@ bool ProcessPipe::send(const std::string& content) {
 //// Class RemoteEngine
 
 RemoteEngine::RemoteEngine(RemoteMode mode) {
-    remote_running = true;
     remote_mode = mode;
     if (mode == RemoteMode::FilePipe) {
         pipe = std::make_unique<OutputFilePipe>();
-        pipe->set_filepath("gui_" + std::to_string(std::time(nullptr)) + "_" + std::to_string(std::rand() % 100) + ".pipe");
-        remote = new std::thread(&RemoteEngine::start_remote, this);
     } else if (mode == RemoteMode::Process) {
         pipe = std::make_unique<ProcessPipe>();
-        pipe->set_filepath("search_engine");
     } else {
         throw std::runtime_error("Incorrect work mode supplied to RemoteEngine object.");
     }
+    pipe->set_filepath("search_engine");
 }
 
 RemoteEngine::~RemoteEngine() {
-    if (remote_mode == RemoteMode::FilePipe && remote != nullptr && remote->joinable()) {
-        pipe->send("0");
-        remote->join();
-        delete remote;
-    } else if (remote_mode == RemoteMode::Process) {
-        pipe->send("0");
-    }
+    pipe->send("0");
 }
 
 int RemoteEngine::indexation_ongoing() {
@@ -111,6 +112,7 @@ bool RemoteEngine::process_request(const std::string& request, std::vector<Reque
         return false;
     }
 
+    acceptor.clear();
     for (auto& entry : answers["answers"]) {
         if (entry["result"].get<bool>()) {
             if (entry.contains("relevance")) {
@@ -127,11 +129,6 @@ bool RemoteEngine::process_request(const std::string& request, std::vector<Reque
 }
 
 bool RemoteEngine::load_config(const std::string& filepath) {
-    if (!remote_running) {
-        if (remote != nullptr) delete remote;
-        remote_running = true;
-        remote = new std::thread(&RemoteEngine::start_remote, this);
-    }
     if (load_file(filepath)) {
         current_status.clear();
         pipe->send("ReloadConfigFrom " + filepath);
@@ -146,11 +143,13 @@ void RemoteEngine::reload_config() {
     pipe->send("ReloadConfig");
 }
 
-void RemoteEngine::save_config(const std::string& filepath) {
+void RemoteEngine::save_config(const std::string& filepath, bool wait_for_completion) {
     if (!operable()) return;
+    if (wait_for_completion) std::remove(filepath.c_str());
     std::stringstream commands;
     commands << "SaveConfigTo " << filepath << std::endl;
     pipe->send(commands.str());
+    if (wait_for_completion) wait_for_file(filepath);
 };
 
 void RemoteEngine::dump_index() {
@@ -178,14 +177,13 @@ void RemoteEngine::reindex(const std::vector<size_t>& docs) {
     }
 };
 
-bool RemoteEngine::status(const std::vector<size_t>& docs, std::vector<DocInfo>& acceptor) {
+bool RemoteEngine::status(const std::vector<size_t>& docs, std::vector<DocInfo>* acceptor) {
     if (!operable()) return false;
 
+    bool full_status = false;
     std::string status_filepath;
-    bool full_update = false;
-
     if (docs.empty()) {
-        full_update = true;
+        full_status = true;
         status_filepath = catalog + file_name + ".status.json";
         std::remove(status_filepath.c_str());
         pipe->send("BaseStatus");
@@ -219,10 +217,17 @@ bool RemoteEngine::status(const std::vector<size_t>& docs, std::vector<DocInfo>&
         return false;
     }
 
+    size_t max_doc_id = 0;
     int entries_count = status["doc_id"].size();
-    acceptor.resize(entries_count);
+    if (entries_count == 0) return true;
+
+    for (int i = 0; i < entries_count; ++i) max_doc_id = std::max(max_doc_id, status["doc_id"][i].get<size_t>());
+    if (full_status) current_status.resize(entries_count);
+    if (current_status.size() < max_doc_id + 1) current_status.resize(max_doc_id + 1);
+
     for (int i = 0; i < entries_count; ++i) {
-        auto& doc_info = acceptor[i];
+        size_t doc_id = status["doc_id"][i].get<size_t>();
+        auto& doc_info = current_status[doc_id];
         doc_info.doc_id = status["doc_id"][i].get<int>();
         doc_info.indexed = status["indexed"][i].get<bool>();
         doc_info.indexing_in_progress = status["indexing_in_progress"][i].get<bool>();
@@ -233,11 +238,14 @@ bool RemoteEngine::status(const std::vector<size_t>& docs, std::vector<DocInfo>&
         doc_info.filepath = status["filepath"][i].get<std::string>();
     }
 
-    if (full_update || acceptor.size() >= current_status.size()) {
-        current_status = acceptor;
-    } else {
-        for (auto& doc_info : acceptor) {
-            current_status[doc_info.doc_id] = doc_info;
+    if (acceptor != nullptr) {
+        if (docs.empty()) {
+            *acceptor = current_status;
+        } else {
+            acceptor->reserve(entries_count);
+            for (size_t doc_id : docs) {
+                if (doc_id <= max_doc_id) acceptor->push_back(current_status[doc_id]);
+            }
         }
     }
     return true;
@@ -269,14 +277,7 @@ void RemoteEngine::remove_files(const std::vector<size_t>& docs) {
 //// Private members
 
 bool RemoteEngine::operable() const {
-    return remote_running && !config_filepath.empty();
-}
-
-void RemoteEngine::start_remote() {
-    remote_running = true;
-    std::string command = "search_engine FILEPIPE " + pipe->get_filepath();
-    system(command.c_str());
-    remote_running = false;
+    return !config_filepath.empty();
 }
 
 bool RemoteEngine::wait_for_file(const std::string& filepath, int timeout_s) {

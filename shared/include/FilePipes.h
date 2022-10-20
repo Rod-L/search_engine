@@ -4,6 +4,9 @@
 #include <sstream>
 #include <fstream>
 #include <thread>
+#include "PathHelper.h"
+
+//// Generic
 
 class InputPipeInterface {
 public:
@@ -16,29 +19,39 @@ public:
     virtual ~OutputPipeInterface() {};
     virtual bool send(const std::string& content) = 0;
     virtual void set_filepath(const std::string& filepath) {
-        pipe_filepath = filepath;
+        executable_filepath = filepath;
     };
     virtual const std::string& get_filepath() const {
-        return pipe_filepath;
+        return executable_filepath;
     };
 protected:
-    std::string pipe_filepath;
+    bool executable_started = false;
+    bool executable_running = false;
+    std::string executable_filepath;
 };
 
-class InputFilePipe: public InputPipeInterface {
+//// File
+
+class FilePipeInterface {
+public:
+    virtual ~FilePipeInterface() {};
+protected:
+    void lock(const std::string& my_token, const std::string& other_token);
+    void unlock(const std::string& my_token);
+    std::string pipe_filepath;
+    std::string block_filepath;
+};
+
+class InputFilePipe: InputPipeInterface, FilePipeInterface {
 public:
     InputFilePipe() = delete;
     explicit InputFilePipe(const std::string& filepath);
 
     ~InputFilePipe();
     bool get(std::string& to) override;
-private:
-    std::string pipe_filepath;
-    std::string block_filepath;
-    size_t message_id;
 };
 
-class OutputFilePipe: public OutputPipeInterface {
+class OutputFilePipe: public OutputPipeInterface, public FilePipeInterface {
 public:
     OutputFilePipe() = default;
     explicit OutputFilePipe(const std::string& filepath);
@@ -47,8 +60,4 @@ public:
     bool send(const std::string& content) override;
     void set_filepath(const std::string& filepath) override;
     const std::string& get_filepath() const override;
-private:
-    std::string pipe_filepath;
-    std::string block_filepath;
-    size_t message_id;
 };

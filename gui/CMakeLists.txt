@@ -8,8 +8,6 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_PREFIX_PATH "E:\\Qt5\\5.15.2\\mingw81_64\\lib\\cmake")
 
-############################################
-# Build the test framework
 add_executable(gui
         ../shared/src/FilePipes.cpp
         ../shared/src/PathHelper.cpp
@@ -32,6 +30,12 @@ target_link_libraries(${GUI_PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(${GUI_PROJECT_NAME} PRIVATE cpr::cpr)
+
+##############################################
+# Catch2 - uncomment for testing
+
+#enable_testing()
+add_subdirectory(tests)
 
 ############################################
 

@@ -14,6 +14,7 @@ bool process_command_line(const std::string& line, const std::map<std::string, v
     std::getline(parser, params);
 
     if (command.empty()) return true;
+    std::cout << "Processing command: " << command << ' ' << params << std::endl;
 
     auto func = commands.find(command);
     if (func == commands.end()) {
@@ -55,9 +56,7 @@ void filepipe_mode(const std::string& path, const std::map<std::string, void(*)(
 
         std::stringstream pipe_commands(line);
         std::string command;
-        while (!pipe_commands.eof()) {
-            std::getline(pipe_commands, command);
-            if (!command.empty()) std::cout << "Got command from pipe: " << command << std::endl;
+        while (std::getline(pipe_commands, command)) {
             if (!process_command_line(command, commands)) {
                 std::remove(path.c_str());
                 return;

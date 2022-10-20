@@ -22,11 +22,12 @@ void HTTPFetcher::get_text(const std::string& html, std::stringstream& acceptor)
     acceptor.str("");
 
     std::string buf;
-    while(!input.eof()) {
+    while(true) {
         std::getline(input, buf, '>');
         if (buf.substr(0, 6) == "script" || buf.substr(0, 5) == "style") continue;
         input >> std::ws;
         std::getline(input, buf, '<');
+        if (input.eof()) break;
         acceptor << buf << std::endl;
     }
 }

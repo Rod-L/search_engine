@@ -22,6 +22,9 @@ struct RequestAnswer{
 
     RequestAnswer(): doc_id(0), rank(0) {};
     RequestAnswer(size_t _doc_id, float _rank): doc_id(_doc_id), rank(_rank) {};
+    bool operator==(const RequestAnswer& other) const {
+        return doc_id == other.doc_id && std::abs(rank - other.rank) < 0.0001;
+    };
 };
 
 //// struct DocsInfo
@@ -59,7 +62,6 @@ public:
     std::string name;
     int max_responses;
     int max_indexation_threads;
-    bool remote_running;
     bool auto_reindex;
     bool auto_dump_index;
     bool auto_load_index_dump;
@@ -78,11 +80,11 @@ public:
     bool process_request(const std::string& request, std::vector<RequestAnswer>& acceptor);
     bool load_config(const std::string& filepath);
     void reload_config();
-    void save_config(const std::string& filepath);
+    void save_config(const std::string& filepath, bool wait_for_completion = false);
     void dump_index();
     void load_index();
     void reindex(const std::vector<size_t>& docs);
-    bool status(const std::vector<size_t>& docs, std::vector<DocInfo>& acceptor);
+    bool status(const std::vector<size_t>& docs, std::vector<DocInfo>* acceptor = nullptr);
     void add_files(const std::vector<std::string>& files);
     void remove_files(const std::vector<size_t>& docs);
 
@@ -91,10 +93,8 @@ private:
     std::string config_filepath;
     std::string file_name;
     std::string catalog;
-    std::thread* remote;
 
     bool operable() const;
-    void start_remote();
     static bool wait_for_file(const std::string& filepath, int timeout_s = 4);
     bool load_file(const std::string& filepath);
 };

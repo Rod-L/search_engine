@@ -4,9 +4,11 @@
 #include <vector>
 #include <string>
 #include <sstream>
+#include <filesystem>
 #include "HTTPTextFetcher.h"
 
 namespace PathHelper {
+    std::string current_dir();
     bool is_relative(const std::string& filepath);
     std::string combine_path(const std::string& root, const std::string& relative);
     std::string catalog_from_filepath(const std::string& filepath);

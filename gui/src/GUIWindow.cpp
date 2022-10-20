@@ -197,7 +197,7 @@ int GUIWindow::table_current_row(QTableWidget *table, int* acceptor) {
 
 void GUIWindow::update_documents_entries(const std::vector<size_t>& ids) {
     std::vector<DocInfo> status;
-    if (!REMOTE->status(ids, status)) return;
+    if (!REMOTE->status(ids, &status)) return;
 
     int docs_count = REMOTE->current_status.size();
     auto table = UI->tableDocuments;
@@ -349,6 +349,7 @@ void GUIWindow::indexationChecker() {
 void GUIWindow::toggleDisplayFullFilenames(QTableWidget* table, int column, bool state) {
     for (int i = 0; i < table->rowCount(); ++i) {
         auto cell = table->item(i, column);
+        if (cell == nullptr) continue;
         auto filename = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
         std::string full = filename.toStdString();
         if (state || HTTPFetcher::is_url(full)) {
@@ -561,11 +562,9 @@ void GUIWindow::saveConfigAs() {
     auto filepath = QFileDialog::getSaveFileName(this, caption, "", filter);
 
     if (filepath.isEmpty()) return;
-    REMOTE->save_config(filepath.toStdString());
+    REMOTE->save_config(filepath.toStdString(), true);
     UI->statusbar->showMessage("Waiting for file to be saved...");
-    QTimer::singleShot(1000, [this, filepath](){
-        loadConfigFile(filepath, UI->actionShow_recent_configurations->isEnabled());
-    });
+    loadConfigFile(filepath, UI->actionShow_recent_configurations->isEnabled());
 }
 
 void GUIWindow::openDocument() {
@@ -599,8 +598,7 @@ void GUIWindow::addURLs() {
     std::vector<std::string> URLs;
     std::stringstream text_stream(text.toStdString());
 
-    while (!text_stream.eof()) {
-        std::getline(text_stream, url);
+    while (std::getline(text_stream, url)) {
         if (HTTPFetcher::is_url(url)) URLs.push_back(url);
     }
 
