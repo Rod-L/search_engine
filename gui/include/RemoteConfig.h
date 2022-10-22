@@ -22,9 +22,7 @@ struct RequestAnswer{
 
     RequestAnswer(): doc_id(0), rank(0) {};
     RequestAnswer(size_t _doc_id, float _rank): doc_id(_doc_id), rank(_rank) {};
-    bool operator==(const RequestAnswer& other) const {
-        return doc_id == other.doc_id && std::abs(rank - other.rank) < 0.0001;
-    };
+    bool operator==(const RequestAnswer& other) const;
 };
 
 //// struct DocsInfo
@@ -66,6 +64,7 @@ public:
     bool auto_dump_index;
     bool auto_load_index_dump;
     bool relative_to_config_folder;
+    bool use_independent_dicts_method;
     std::vector<DocInfo> current_status;
 
     RemoteEngine() = delete;

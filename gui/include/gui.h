@@ -1,13 +1,13 @@
 /********************************************************************************
-** Form generated from reading UI file 'guiRYxwSi.ui'
+** Form generated from reading UI file 'guijpVdrO.ui'
 **
 ** Created by: Qt User Interface Compiler version 5.15.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
 
-#ifndef GUIRYXWSI_H
-#define GUIRYXWSI_H
+#ifndef GUIJPVDRO_H
+#define GUIJPVDRO_H
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
@@ -75,6 +75,7 @@ public:
     QCheckBox *checkBox_auto_load_index_dump;
     QCheckBox *checkBox_auto_reindex;
     QCheckBox *checkBox_relative_to_config_folder;
+    QCheckBox *checkBox_use_independent_dicts_method;
     QSpacerItem *verticalSpacer;
     QHBoxLayout *horizontalLayout_4;
     QSpacerItem *horizontalSpacer;
@@ -298,6 +299,11 @@ public:
         checkBox_relative_to_config_folder->setObjectName(QString::fromUtf8("checkBox_relative_to_config_folder"));
 
         verticalLayout->addWidget(checkBox_relative_to_config_folder);
+
+        checkBox_use_independent_dicts_method = new QCheckBox(tabSettings);
+        checkBox_use_independent_dicts_method->setObjectName(QString::fromUtf8("checkBox_use_independent_dicts_method"));
+
+        verticalLayout->addWidget(checkBox_use_independent_dicts_method);
 
         verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
@@ -536,6 +542,7 @@ public:
         QObject::connect(actionSave_as, SIGNAL(triggered()), MainWindow, SLOT(saveConfigAs()));
         QObject::connect(pushButton_processRequests, SIGNAL(clicked()), MainWindow, SLOT(processRequest()));
         QObject::connect(lineEdit_request, SIGNAL(returnPressed()), MainWindow, SLOT(processRequest()));
+        QObject::connect(checkBox_use_independent_dicts_method, SIGNAL(clicked()), MainWindow, SLOT(enableConfigChangesControls()));
 
         tabWidget->setCurrentIndex(0);
 
@@ -565,6 +572,7 @@ public:
         checkBox_auto_load_index_dump->setText(QCoreApplication::translate("MainWindow", "auto_load_index_dump", nullptr));
         checkBox_auto_reindex->setText(QCoreApplication::translate("MainWindow", "auto_reindex", nullptr));
         checkBox_relative_to_config_folder->setText(QCoreApplication::translate("MainWindow", "relative_to_config_folder", nullptr));
+        checkBox_use_independent_dicts_method->setText(QCoreApplication::translate("MainWindow", "use_independent_dicts_method", nullptr));
         pushButton_applyConfigChanges->setText(QCoreApplication::translate("MainWindow", "Apply", nullptr));
         pushButton_revertConfigChanges->setText(QCoreApplication::translate("MainWindow", "Revert", nullptr));
         tabWidget->setTabText(tabWidget->indexOf(tabSettings), QCoreApplication::translate("MainWindow", "Settings", nullptr));
@@ -617,4 +625,4 @@ namespace Ui {
 
 QT_END_NAMESPACE
 
-#endif // GUIRYXWSI_H
+#endif // GUIJPVDRO_H

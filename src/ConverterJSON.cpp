@@ -109,6 +109,7 @@ void ConverterJSON::load_config_json(json& config) {
     auto_dump_index = choose(settings, "auto_dump_index");
     auto_load_index_dump = choose(settings, "auto_load_index_dump");
     relative_to_config_folder = choose(settings, "relative_to_config_folder");
+    use_independent_dicts_method = choose(settings, "use_independent_dicts_method");
 
     files.clear();
     config_files.clear();
@@ -188,7 +189,8 @@ void ConverterJSON::save_config_file(std::string& filepath) const {
             {"auto_dump_index", auto_dump_index},
             {"auto_load_index_dump", auto_load_index_dump},
             {"auto_reindex", auto_reindex},
-            {"relative_to_config_folder", relative_to_config_folder}
+            {"relative_to_config_folder", relative_to_config_folder},
+            {"use_independent_dicts_method", use_independent_dicts_method}
     };
 
     config["files"] = config_files;
@@ -209,7 +211,8 @@ json ConverterJSON::default_config() {
             {"auto_dump_index", true},
             {"auto_load_index_dump", true},
             {"auto_reindex", false},
-            {"relative_to_config_folder", true}
+            {"relative_to_config_folder", true},
+            {"use_independent_dicts_method", false}
     };
 
     config["files"] = json::array();
@@ -339,7 +342,7 @@ void ConverterJSON::put_answers(const std::vector<std::vector<RelativeIndex>>& a
     std::cout << "Results have been written to '" << filepath << "'" << std::endl;
 }
 
-void init_status_json(json& status) {
+void ConverterJSON::init_status_json(json& status) const {
     status["timestamp"] = std::time(nullptr);
 
     status["doc_id"] = json::array();
@@ -418,4 +421,46 @@ void ConverterJSON::files_status(const std::string& filepath, const std::vector<
     }
 
     write_status_report(status, filepath);
+}
+
+const std::string& ConverterJSON::get_config_path() const {
+    return config_filepath;
+};
+
+const std::string& ConverterJSON::get_config_catalog() const {
+    return config_catalog;
+};
+
+const std::string& ConverterJSON::get_config_name() const {
+    return config_name;
+};
+
+size_t ConverterJSON::add_file(const std::string& filepath) {
+    size_t doc_id;
+    for (doc_id = 0; doc_id < config_files.size(); ++doc_id) {
+        if (filepath == config_files[doc_id]) {
+            break;
+        }
+    }
+
+    if (doc_id == config_files.size()) {
+        config_files.push_back(filepath);
+        files.push_back(filepath);
+    }
+
+    return doc_id;
+};
+
+void ConverterJSON::add_files(const std::vector<std::string>& new_files) {
+    for (auto& name : new_files) add_file(name);
+};
+
+void ConverterJSON::remove_files(const std::vector<size_t>& ids) {
+    std::vector<size_t> sorted_ids = ids;
+    std::sort(sorted_ids.begin(), sorted_ids.end(), std::greater<size_t>());
+    for (auto doc_id : sorted_ids) {
+        if (doc_id >= files.size()) continue;
+        files.erase(files.begin() + doc_id);
+        config_files.erase(config_files.begin() + doc_id);
+    }
 }

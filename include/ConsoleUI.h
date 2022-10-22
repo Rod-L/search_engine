@@ -103,6 +103,7 @@ std::vector<size_t> ConsoleUI::parse_ids(std::string &str_ids) {
 
 void ConsoleUI::form_index() {
     server.max_indexation_threads = converter.max_indexation_threads;
+    server.indexation_method = converter.use_independent_dicts_method ? InvertedIndex::IndependentDicts : InvertedIndex::SeparatedAccess;
     server.clear_index();
     const std::vector<std::string>& docs = converter.get_text_documents();
     std::string index_path = ConsoleUI::index_path(converter.get_config_path());
@@ -136,11 +137,9 @@ void ConsoleUI::form_index() {
 
 void ConsoleUI::reload_config(const std::string &filepath) {
     if (converter.reload_config_file(filepath)) {
-        if (!filepath.empty()) {
-            form_index();
-        } else {
-            server.max_indexation_threads = converter.max_indexation_threads;
-        }
+        server.max_indexation_threads = converter.max_indexation_threads;
+        server.indexation_method = converter.use_independent_dicts_method ? InvertedIndex::IndependentDicts : InvertedIndex::SeparatedAccess;
+        if (!filepath.empty()) form_index();
     }
 }
 

@@ -25,6 +25,7 @@ public:
     bool auto_dump_index;
     bool auto_load_index_dump;
     bool relative_to_config_folder;
+    bool use_independent_dicts_method;
 
     ConverterJSON() = default;
 
@@ -77,45 +78,12 @@ public:
 
     void files_status(const std::string& filepath, const std::vector<DocInfo>& docs_info) const;
 
-    const std::string& get_config_path() const {
-        return config_filepath;
-    };
-    const std::string& get_config_catalog() const {
-        return config_catalog;
-    };
-    const std::string& get_config_name() const {
-        return config_name;
-    };
-
-    size_t add_file(const std::string& filepath) {
-        size_t doc_id;
-        for (doc_id = 0; doc_id < config_files.size(); ++doc_id) {
-            if (filepath == config_files[doc_id]) {
-                break;
-            }
-        }
-
-        if (doc_id == config_files.size()) {
-            config_files.push_back(filepath);
-            files.push_back(filepath);
-        }
-
-        return doc_id;
-    };
-
-    void add_files(const std::vector<std::string>& new_files) {
-        for (auto& name : new_files) add_file(name);
-    };
-
-    void remove_files(const std::vector<size_t>& ids) {
-        std::vector<size_t> sorted_ids = ids;
-        std::sort(sorted_ids.begin(), sorted_ids.end(), std::greater<size_t>());
-        for (auto doc_id : sorted_ids) {
-            if (doc_id >= files.size()) continue;
-            files.erase(files.begin() + doc_id);
-            config_files.erase(config_files.begin() + doc_id);
-        }
-    }
+    const std::string& get_config_path() const;
+    const std::string& get_config_catalog() const;
+    const std::string& get_config_name() const;
+    size_t add_file(const std::string& filepath);
+    void add_files(const std::vector<std::string>& new_files);
+    void remove_files(const std::vector<size_t>& ids);
 
 private:
 
@@ -164,6 +132,8 @@ private:
     static nlohmann::json default_config();
 
     void write_status_report(const nlohmann::json& report, const std::string& filepath) const;
+
+    void init_status_json(nlohmann::json& status) const;
 
     void add_status_entry(nlohmann::json& status, int line_id, size_t doc_id, const std::vector<DocInfo>& docs_info) const;
 };

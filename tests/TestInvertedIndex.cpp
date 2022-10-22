@@ -1,4 +1,8 @@
+#define CATCH_CONFIG_MAIN
+#define CATCH_CONFIG_ENABLE_BENCHMARKING
+
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/benchmark/catch_benchmark.hpp>
 #include "InvertedIndex.h"
 
 void display_entry_vector(const std::vector<Entry>& entries) {
@@ -112,18 +116,28 @@ TEST_CASE("InvertedIndex_IndexExtension") {
 
 TEST_CASE("InvertedIndex_IndexationPerformance") {
     const std::vector<std::string> docs = {
-            "Meyer David. Behemoth 1.txt",
-            "Meyer David. Behemoth 2.txt",
-            "../Meyer David. Behemoth 3.txt",
-            "../Meyer David. Behemoth 4.txt",
-            "../Meyer David. Behemoth 5.txt",
-            "../Meyer David. Behemoth 6.txt",
+            "Sample 1.txt",
+            "Sample 2.txt",
+            "Sample 3.txt",
+            "Sample 1.txt",
+            "Sample 2.txt",
+            "Sample 3.txt",
     };
 
-    InvertedIndex idx;
-    for (int i = 0; i < 10; ++i) {
+    BENCHMARK("Indexation: separated access") {
+        InvertedIndex idx;
+        idx.max_indexation_threads = 8;
+        idx.indexation_method = InvertedIndex::SeparatedAccess;
         idx.update_document_base(docs, true);
-    }
+    };
+
+    BENCHMARK("Indexation: independent dicts") {
+        InvertedIndex idx;
+        idx.max_indexation_threads = 8;
+        idx.indexation_method = InvertedIndex::IndependentDicts;
+        idx.update_document_base(docs, true);
+    };
+
 }
 
 TEST_CASE("InvertedIndex_MissingWord") {

@@ -475,6 +475,7 @@ void GUIWindow::applyConfigChanges() {
     settings["auto_dump_index"] = UI->checkBox_auto_dump_index->isChecked();
     settings["auto_load_index_dump"] = UI->checkBox_auto_load_index_dump->isChecked();
     settings["relative_to_config_folder"] = UI->checkBox_relative_to_config_folder->isChecked();
+    settings["use_independent_dicts_method"] = UI->checkBox_relative_to_config_folder->isChecked();
 
     std::ofstream output(config_filepath);
     if (!output.is_open()) {
@@ -503,6 +504,7 @@ void GUIWindow::revertConfigChanges() {
     UI->checkBox_auto_dump_index->setChecked(REMOTE->auto_dump_index);
     UI->checkBox_auto_load_index_dump->setChecked(REMOTE->auto_load_index_dump);
     UI->checkBox_relative_to_config_folder->setChecked(REMOTE->relative_to_config_folder);
+    UI->checkBox_use_independent_dicts_method->setChecked(REMOTE->use_independent_dicts_method);
 }
 
 void GUIWindow::openRecentConfig(int row, int column) {

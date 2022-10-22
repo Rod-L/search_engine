@@ -284,6 +284,13 @@
             </widget>
            </item>
            <item>
+            <widget class="QCheckBox" name="checkBox_use_independent_dicts_method">
+             <property name="text">
+              <string>use_independent_dicts_method</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <spacer name="verticalSpacer">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
@@ -1027,6 +1034,22 @@
     <hint type="sourcelabel">
      <x>636</x>
      <y>72</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>506</x>
+     <y>307</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>checkBox_use_independent_dicts_method</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>enableConfigChangesControls()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>672</x>
+     <y>262</y>
     </hint>
     <hint type="destinationlabel">
      <x>506</x>

@@ -1,5 +1,11 @@
 #include "RemoteConfig.h"
 
+//// struct RequestAnswer
+
+bool RequestAnswer::operator==(const RequestAnswer& other) const {
+    return doc_id == other.doc_id && std::abs(rank - other.rank) < 0.0001;
+};
+
 //// Class ProcessPipe
 
 ProcessPipe::ProcessPipe(const std::string& filepath) {
@@ -239,7 +245,7 @@ bool RemoteEngine::status(const std::vector<size_t>& docs, std::vector<DocInfo>*
     }
 
     if (acceptor != nullptr) {
-        if (docs.empty()) {
+        if (full_status) {
             *acceptor = current_status;
         } else {
             acceptor->reserve(entries_count);
@@ -334,6 +340,7 @@ bool RemoteEngine::load_file(const std::string& filepath) {
     auto_dump_index = choose(settings, "auto_dump_index");
     auto_load_index_dump = choose(settings, "auto_load_index_dump");
     relative_to_config_folder = choose(settings, "relative_to_config_folder");
+    use_independent_dicts_method = choose(settings, "use_independent_dicts_method");
 
     config_filepath = filepath;
     return true;

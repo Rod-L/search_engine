@@ -17,9 +17,17 @@ WordIndex::WordIndex(const WordIndex& other) {
 //// InvertedIndex class
 
 InvertedIndex::InvertedIndex(const InvertedIndex& other) {
+    wait_for_indexation(true);
     freq_dictionary = other.freq_dictionary;
-    interrupt_indexation = false;
 }
+
+InvertedIndex::~InvertedIndex() {
+    if (indexation_handler_thread != nullptr) {
+        interrupt_indexation = true;
+        if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
+        delete indexation_handler_thread;
+    }
+};
 
 const std::vector<DocInfo> &InvertedIndex::get_docs_info() const {
     return docs_info;
@@ -137,6 +145,8 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
 }
 
 void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
+    wait_for_indexation(true);
+
     clear();
     docs_info.resize(input_texts.size());
 
@@ -145,11 +155,7 @@ void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts
 
     for (int i = 0; i < input_texts.size(); ++i) {
         auto& doc_info = docs_info[i];
-        doc_info.filepath = std::to_string(i);
         threads.emplace_back(&InvertedIndex::add_text, this, static_cast<size_t>(i), input_texts[i]);
-
-        doc_info.indexed = false;
-        doc_info.indexing_in_progress = true;
     }
 
     for (auto& thread : threads) {
@@ -171,7 +177,7 @@ void InvertedIndex::report_indexation_finish(const std::string& filename, const 
 
 bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
     docs_access.lock();
-    auto doc_info = docs_info[doc_id];
+    DocInfo doc_info = docs_info[doc_id];
     docs_access.unlock();
 
     doc_info.filepath = filename;
@@ -203,7 +209,7 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
     }
 
     if (have_text) {
-        index_doc(doc_id, content);
+        indexation_method == IndependentDicts ? independent_index_doc(doc_id, content) : index_doc(doc_id, content);
         if (interrupt_indexation) {
             flush_doc_index(doc_id);
             doc_info.indexing_error = true;
@@ -229,7 +235,15 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
 }
 
 bool InvertedIndex::add_text(size_t doc_id, const std::string& text) {
-    auto& doc_info = docs_info[doc_id];
+    docs_access.lock();
+    DocInfo doc_info = docs_info[doc_id];
+    docs_access.unlock();
+
+    if (doc_info.filepath.empty()) {
+        doc_info.filepath = "Text #" + std::to_string(doc_id);
+    }
+
+    doc_info.awaits_indexation = false;
     doc_info.indexing_in_progress = true;
 
     std::stringstream content(text);
@@ -240,7 +254,19 @@ bool InvertedIndex::add_text(size_t doc_id, const std::string& text) {
     doc_info.indexing_in_progress = false;
     doc_info.indexed = true;
     doc_info.index_date = std::time(nullptr);
-    return true;
+
+    if (interrupt_indexation) {
+        flush_doc_index(doc_id);
+        doc_info.indexed = false;
+        doc_info.indexing_error = true;
+        doc_info.error_text = "Indexation interrupted by user.";
+    };
+
+    docs_access.lock();
+    docs_info[doc_id] = doc_info;
+    docs_access.unlock();
+    report_indexation_finish(doc_info.filepath, doc_info);
+    return !doc_info.indexing_error;
 }
 
 std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
@@ -259,7 +285,7 @@ std::vector<Entry> InvertedIndex::get_word_count(const std::string& word) {
     return result;
 }
 
-//// Indexing
+//// Indexation methods
 
 void InvertedIndex::clear() {
     if (!indexation_queue.empty()) {
@@ -319,7 +345,10 @@ void InvertedIndex::rebase_doc_index(size_t old_id, size_t new_id) {
 void InvertedIndex::flush_doc_index(size_t doc_id) {
     freq_dict_access.lock();
     for (auto& word_index : freq_dictionary) {
-        word_index.second.index.erase(doc_id);
+        auto& item = word_index.second;
+        item.access.lock();
+        item.index.erase(doc_id);
+        item.access.unlock();
     }
     freq_dict_access.unlock();
 }
@@ -352,7 +381,7 @@ std::vector<std::string> InvertedIndex::split_by_non_letters(std::string& word, 
     return result;
 }
 
-//// Indexing blocking method
+//// Indexation separate access method
 
 void InvertedIndex::count_word(std::string &word, size_t doc_id) {
     freq_dict_access.lock();
@@ -382,6 +411,54 @@ void InvertedIndex::index_doc(size_t doc_id, StreamT& stream) {
         }
         if (interrupt_indexation) return;
     }
+}
+
+//// Indexation independent dicts method
+
+void InvertedIndex::merge_dict(std::map<std::string, WordIndex>& destination, std::map<std::string, WordIndex>& source) {
+    for (auto& word_index : source) {
+        word_index.second.access.lock();
+        auto& word = word_index.first;
+        auto& index = word_index.second.index;
+        auto& dest_index = destination[word].index;
+        for (auto& entry : index) {
+            dest_index[entry.first] = entry.second;
+        }
+        word_index.second.access.unlock();
+    }
+}
+
+void InvertedIndex::count_word(std::map<std::string, WordIndex>& dict, std::string &word, size_t doc_id) {
+    auto& entries = dict[word].index;
+    auto pair = entries.find(doc_id);
+    if (pair == entries.end()) {
+        entries[doc_id] = Entry{static_cast<size_t>(doc_id), 1};
+    } else {
+        pair->second.count += 1;
+    }
+}
+
+template<typename StreamT>
+void InvertedIndex::index_doc(std::map<std::string, WordIndex>& dict, size_t doc_id, StreamT& stream) {
+    std::string word;
+    while (stream >> word) {
+        count_word(word, doc_id);
+        auto parts = InvertedIndex::split_by_non_letters(word);
+        if (!parts.empty() && parts[0] != word) {
+            for (auto& part : parts) count_word(dict, part, doc_id);
+        }
+        if (interrupt_indexation) return;
+    }
+}
+
+template<typename StreamT>
+void InvertedIndex::independent_index_doc(size_t doc_id, StreamT& stream) {
+    std::map<std::string, WordIndex> dict;
+    index_doc(dict, doc_id, stream);
+    if (interrupt_indexation) return;
+    freq_dict_access.lock();
+    merge_dict(freq_dictionary, dict);
+    freq_dict_access.unlock();
 }
 
 //// Save/load to/from file
