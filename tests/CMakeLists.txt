@@ -16,6 +16,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 add_executable(${TESTS_PROJECT_NAME}
+        TestHelper.h
+        TestHelper.cpp
         TestInvertedIndex.cpp
         TestSearchEngine.cpp
         ../src/ConverterJSON.cpp

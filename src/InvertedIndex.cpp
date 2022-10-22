@@ -55,7 +55,14 @@ void InvertedIndex::wait_for_indexation(bool interrupt) {
     if (interrupt && indexation_in_progress()) {
         std::cout << "Indexation in progress. Interrupting..." << std::endl;
     }
-    while (indexation_in_progress()) std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    if (indexation_handler_thread != nullptr) {
+        if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
+        delete indexation_handler_thread;
+        indexation_handler_thread = nullptr;
+    }
+
+    assert(indexation_in_progress() == 0);
     interrupt_indexation = false;
 }
 
@@ -121,16 +128,15 @@ void InvertedIndex::extend_document_base(const std::map<size_t,std::string>& doc
         if (indexation_handler_thread != nullptr) {
             if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
             delete indexation_handler_thread;
+            indexation_handler_thread = nullptr;
         }
         indexation_handler_thread = new std::thread(&InvertedIndex::indexation_queue_handler, this);
     }
 
     if (wait_for_completion) {
         std::cout << "Waiting for completion..." << std::endl;
-        if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
+        wait_for_indexation(false);
         std::cout << "Indexation completed." << std::endl;
-        delete indexation_handler_thread;
-        indexation_handler_thread = nullptr;
     }
 }
 
@@ -142,26 +148,6 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
 
     clear();
     extend_document_base(docs_by_id, wait_for_completion);
-}
-
-void InvertedIndex::update_text_base(const std::vector<std::string>& input_texts) {
-    wait_for_indexation(true);
-
-    clear();
-    docs_info.resize(input_texts.size());
-
-    std::vector<std::thread> threads;
-    threads.reserve(input_texts.size());
-
-    for (int i = 0; i < input_texts.size(); ++i) {
-        auto& doc_info = docs_info[i];
-        threads.emplace_back(&InvertedIndex::add_text, this, static_cast<size_t>(i), input_texts[i]);
-    }
-
-    for (auto& thread : threads) {
-        if (thread.joinable()) thread.join();
-    }
-    std::cout << "Database updated, texts loaded: " << docs_info.size() << std::endl;
 }
 
 void InvertedIndex::report_indexation_finish(const std::string& filename, const DocInfo& doc_info) {
@@ -231,41 +217,6 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
     docs_info[doc_id] = doc_info;
     docs_access.unlock();
     report_indexation_finish(filename, doc_info);
-    return !doc_info.indexing_error;
-}
-
-bool InvertedIndex::add_text(size_t doc_id, const std::string& text) {
-    docs_access.lock();
-    DocInfo doc_info = docs_info[doc_id];
-    docs_access.unlock();
-
-    if (doc_info.filepath.empty()) {
-        doc_info.filepath = "Text #" + std::to_string(doc_id);
-    }
-
-    doc_info.awaits_indexation = false;
-    doc_info.indexing_in_progress = true;
-
-    std::stringstream content(text);
-    index_doc(doc_id, content);
-
-    doc_info.error_text.clear();
-    doc_info.indexing_error = false;
-    doc_info.indexing_in_progress = false;
-    doc_info.indexed = true;
-    doc_info.index_date = std::time(nullptr);
-
-    if (interrupt_indexation) {
-        flush_doc_index(doc_id);
-        doc_info.indexed = false;
-        doc_info.indexing_error = true;
-        doc_info.error_text = "Indexation interrupted by user.";
-    };
-
-    docs_access.lock();
-    docs_info[doc_id] = doc_info;
-    docs_access.unlock();
-    report_indexation_finish(doc_info.filepath, doc_info);
     return !doc_info.indexing_error;
 }
 

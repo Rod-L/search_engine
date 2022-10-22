@@ -1,5 +1,4 @@
-#include <catch2/catch_test_macros.hpp>
-#include "InvertedIndex.h"
+#include "TestHelper.h"
 #include "SearchEngine.h"
 
 void FillDB(SearchServer& server) {
@@ -11,7 +10,10 @@ void FillDB(SearchServer& server) {
             "Word1 Word1 Word2 Word4"
     };
 
-    server.update_text_base(texts);
+    std::vector<std::string> filenames;
+    make_test_files(texts, filenames);
+    server.update_document_base(filenames, true);
+    remove_test_files(filenames);
 }
 
 TEST_CASE("SearchEngine_Search_1") {
@@ -67,7 +69,10 @@ TEST_CASE("SearchEngine_Search_3") {
     };
 
     SearchServer srv;
-    srv.update_text_base(docs);
+    std::vector<std::string> filenames;
+    make_test_files(docs, filenames);
+    srv.update_document_base(filenames, true);
+    remove_test_files(filenames);
     std::vector<std::vector<RelativeIndex>> result = srv.search(request);
     REQUIRE(result == expected);
 }
@@ -110,7 +115,10 @@ TEST_CASE("SearchEngine_Search_Top5") {
     };
 
     SearchServer srv;
-    srv.update_text_base(docs);
+    std::vector<std::string> filenames;
+    make_test_files(docs, filenames);
+    srv.update_document_base(filenames, true);
+    remove_test_files(filenames);
 
     std::vector<std::vector<RelativeIndex>> result = srv.search(request, 5);
 

@@ -1,9 +1,9 @@
-#define CATCH_CONFIG_MAIN
-#define CATCH_CONFIG_ENABLE_BENCHMARKING
-
-#include <catch2/catch_test_macros.hpp>
-#include <catch2/benchmark/catch_benchmark.hpp>
+#include "TestHelper.h"
 #include "InvertedIndex.h"
+
+std::string Sample1 = "The Hobbit was first published in September 1937. Its 1951 second edition (fifth impression) contains a significantly revised portion of Chapter V, “Riddles in the Dark,” which brings the story of The Hobbit more in line with its sequel, The Lord of the Rings, then in progress. Tolkien made some further revisions to the American edition published by Ballantine Books in February 1966, and to the British third edition (sixteenth impression) published by George Allen & Unwin later that same year.";
+std::string Sample2 = "For the 1995 British hardcover edition, published by HarperCollins, the text of The Hobbit was entered into word-processing files, and a number of further corrections of misprints and errors were made. Since then, various editions of The Hobbit have been generated from that computerized text file. For the present text, that file has been compared again, line by line, with the earlier editions, and a number of further corrections have been made to present a text that, as closely as possible, represents Tolkien’s final intended form.";
+std::string Sample3 = "Readers interested in details of the changes made at various times to the text of The Hobbit are referred to Appendix A, “Textual and Revisional Notes,” of The Annotated(1988), and J. R. R. Tolkien: A Descriptive Bibliography by Wayne G. Hammond, with the assistance of Douglas A. Anderson (1993).";
 
 void display_entry_vector(const std::vector<Entry>& entries) {
     for (auto& entry : entries) {
@@ -23,10 +23,13 @@ void TestInvertedIndexFunctionality(
         const std::vector<std::string>& requests,
         const std::vector<std::vector<Entry>>& expected) {
 
-    for (int i = 0; i < 400; ++i) {
+    std::vector<std::string> test_files;
+    make_test_files(docs, test_files);
+
+    for (int i = 0; i < 100; ++i) {
         std::vector<std::vector<Entry>> result;
         InvertedIndex idx;
-        idx.update_text_base(docs);
+        idx.update_document_base(test_files, true);
 
         for (auto &request: requests) {
             std::vector<Entry> word_count = idx.get_word_count(request);
@@ -35,9 +38,9 @@ void TestInvertedIndexFunctionality(
 
         REQUIRE(result.size() == expected.size());
 
-        for (int i = 0; i < expected.size(); ++i) {
-            auto &exp = expected[i];
-            auto &res = result[i];
+        for (int j = 0; j < expected.size(); ++j) {
+            auto &exp = expected[j];
+            auto &res = result[j];
             REQUIRE(exp.size() == res.size()); // Amount of answers is equal for each requests
 
             for (auto &exp_entry: exp) {
@@ -52,6 +55,8 @@ void TestInvertedIndexFunctionality(
             }
         }
     }
+
+    remove_test_files(test_files);
 }
 
 TEST_CASE("InvertedIndex_TestBasic") {
@@ -94,17 +99,17 @@ TEST_CASE("InvertedIndex_TestBasic2") {
 }
 
 TEST_CASE("InvertedIndex_IndexExtension") {
-    const std::map<size_t, std::string> docs1 = {
-            {0, "../examples/2/Sample 1.txt"},
-            {1, "../examples/2/Sample 2.txt"},
-            {2, "../examples/2/Sample 3.txt"}
+    std::vector<std::string> filenames;
+    make_test_files({Sample1, Sample2, Sample3}, filenames);
+
+    std::map<size_t, std::string> docs1 = {
+            {0, filenames[0]},
+            {1, filenames[1]},
     };
 
-    const std::map<size_t, std::string> docs2 = {
-            {1, "../examples/2/Sample 2.txt"},
-            {3, "../examples/1/Annotations/12 Angry men.txt"},
-            {4, "../examples/1/Annotations/Fight club.txt"},
-            {5, "../examples/1/Annotations/Forrest Gump.txt"}
+    std::map<size_t, std::string> docs2 = {
+            {0, filenames[1]},
+            {1, filenames[2]},
     };
 
     for (int i = 0; i < 100; ++i) {
@@ -112,16 +117,21 @@ TEST_CASE("InvertedIndex_IndexExtension") {
         idx.extend_document_base(docs1, true);
         idx.extend_document_base(docs2, true);
     }
+
+    remove_test_files(filenames);
 }
 
 TEST_CASE("InvertedIndex_IndexationPerformance") {
-    const std::vector<std::string> docs = {
-            "Sample 1.txt",
-            "Sample 2.txt",
-            "Sample 3.txt",
-            "Sample 1.txt",
-            "Sample 2.txt",
-            "Sample 3.txt",
+    std::vector<std::string> filenames;
+    make_test_files({Sample1, Sample2, Sample3}, filenames);
+
+    std::vector<std::string> docs = {
+            filenames[0],
+            filenames[1],
+            filenames[2],
+            filenames[0],
+            filenames[1],
+            filenames[2],
     };
 
     BENCHMARK("Indexation: separated access") {
@@ -138,6 +148,7 @@ TEST_CASE("InvertedIndex_IndexationPerformance") {
         idx.update_document_base(docs, true);
     };
 
+    remove_test_files(filenames);
 }
 
 TEST_CASE("InvertedIndex_MissingWord") {

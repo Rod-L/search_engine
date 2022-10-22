@@ -57,12 +57,6 @@ public:
     void update_document_base(const std::vector<std::string>& input_docs, bool wait_for_completion = true);
 
     /**
-    * Fill docs_info by texts and index them. Index base will be completely cleared beforehand.
-    * @param input_texts list of texts to index
-    */
-    void update_text_base(const std::vector<std::string>& input_texts);
-
-    /**
     * Add and index document.\n
     * If index base already contains data by passed doc_id, it won't be cleared automatically!
     * Existing index should be cleared manually by "void clear_doc_index(size_t doc_id)", if necessary.
@@ -71,16 +65,6 @@ public:
     * @return true if file processed successfully
     */
     bool add_document(size_t doc_id, const std::string& filename);
-
-    /**
-    * Add and index document
-    * If index base already contains data by passed doc_id, it won't be cleared automatically!
-    * Existing index should be cleared manually by "void clear_doc_index(size_t doc_id)", if necessary.
-    * @param doc_id selected Id for the document.
-    * @param text content of the document
-    * @return true if text processed successfully
-    */
-    bool add_text(size_t doc_id, const std::string& text);
 
     /**
     * @param word - word to look for in database
