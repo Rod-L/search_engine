@@ -1,6 +1,4 @@
 #include "InvertedIndex.h"
-#include "PathHelper.h"
-#include "GlobalLocks.h"
 
 //// Entry struct
 
@@ -17,16 +15,19 @@ WordIndex::WordIndex(const WordIndex& other) {
 //// InvertedIndex class
 
 InvertedIndex::InvertedIndex(const InvertedIndex& other) {
-    wait_for_indexation(true);
+    wait_for_indexation();
     freq_dictionary = other.freq_dictionary;
 }
 
+InvertedIndex& InvertedIndex::operator=(const InvertedIndex& other) {
+    if (this == &other) return *this;
+    wait_for_indexation();
+    freq_dictionary = other.freq_dictionary;
+    return *this;
+}
+
 InvertedIndex::~InvertedIndex() {
-    if (indexation_handler_thread != nullptr) {
-        interrupt_indexation = true;
-        if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
-        delete indexation_handler_thread;
-    }
+    wait_for_indexation(true);
 };
 
 const std::vector<DocInfo> &InvertedIndex::get_docs_info() const {
@@ -68,7 +69,7 @@ void InvertedIndex::wait_for_indexation(bool interrupt) {
 
 void InvertedIndex::indexation_queue_handler() {
     indexation_handler_active = true;
-    std::cout << "Indexation handler started." << std::endl;
+    DEBUG_MSG("Indexation handler started." << std::endl);
 
     std::map<size_t, std::thread*> indexation_threads;
 
@@ -96,6 +97,8 @@ void InvertedIndex::indexation_queue_handler() {
         }
     }
 
+    if (indexation_over_callback != nullptr) std::thread(indexation_over_callback).detach();
+
     indexation_handler_active = false;
 }
 
@@ -110,9 +113,7 @@ void InvertedIndex::extend_document_base(const std::map<size_t,std::string>& doc
     if (docs_info.size() <= max_id) docs_info.resize(max_id + 1);
     docs_access.unlock();
 
-    GlobalLocks::cout.lock();
-    std::cout << "Starting indexation of " << docs_by_id.size() << " files." << std::endl;
-    GlobalLocks::cout.unlock();
+    DEBUG_MSG("Starting indexation of " << docs_by_id.size() << " files." << std::endl);
 
     for (auto& pair : docs_by_id) {
         auto& doc_info = docs_info[pair.first];
@@ -124,7 +125,7 @@ void InvertedIndex::extend_document_base(const std::map<size_t,std::string>& doc
     }
 
     if (!indexation_handler_active) {
-        std::cout << "Starting handler..." << std::endl;
+        DEBUG_MSG("Starting handler..." << std::endl);
         if (indexation_handler_thread != nullptr) {
             if (indexation_handler_thread->joinable()) indexation_handler_thread->join();
             delete indexation_handler_thread;
@@ -134,9 +135,9 @@ void InvertedIndex::extend_document_base(const std::map<size_t,std::string>& doc
     }
 
     if (wait_for_completion) {
-        std::cout << "Waiting for completion..." << std::endl;
+        DEBUG_MSG("Waiting for completion..." << std::endl);
         wait_for_indexation(false);
-        std::cout << "Indexation completed." << std::endl;
+        DEBUG_MSG("Indexation completed." << std::endl);
     }
 }
 
@@ -148,17 +149,6 @@ void InvertedIndex::update_document_base(const std::vector<std::string>& input_d
 
     clear();
     extend_document_base(docs_by_id, wait_for_completion);
-}
-
-void InvertedIndex::report_indexation_finish(const std::string& filename, const DocInfo& doc_info) {
-    GlobalLocks::cout.lock();
-    std::cout << "'" << filename << "' processed:";
-    if (doc_info.indexing_error) {
-        std::cout << std::endl << doc_info.error_text << std::endl;
-    } else {
-        std::cout << " success." << std::endl;
-    }
-    GlobalLocks::cout.unlock();
 }
 
 bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
@@ -182,16 +172,16 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
 
     std::stringstream content;
     bool have_text;
-
-    if (HTTPFetcher::is_url(filename)) {
-        std::string html;
+    if (HTTPFetcher::is_http_link(filename)) {
+        std::stringstream html;
         have_text = HTTPFetcher::get_html(filename, html);
+        if (have_text) HTTPFetcher::get_text(html, content);
+    } else if (HTTPFetcher::is_html(filename)) {
+        std::stringstream html;
+        have_text = PathHelper::get_text(filename, html);
         if (have_text) HTTPFetcher::get_text(html, content);
     } else {
         have_text = PathHelper::get_text(filename, content);
-        if (have_text && HTTPFetcher::is_html(filename)) {
-            HTTPFetcher::get_text(content.str(), content);
-        }
     }
 
     if (have_text) {
@@ -216,7 +206,11 @@ bool InvertedIndex::add_document(size_t doc_id, const std::string& filename) {
     docs_access.lock();
     docs_info[doc_id] = doc_info;
     docs_access.unlock();
-    report_indexation_finish(filename, doc_info);
+
+    DEBUG_MSG_COND(doc_info.indexing_error,
+                   "'" << filename << "' processed:" << std::endl << doc_info.error_text << std::endl,
+                   "'" << filename << "' processed:" << " success." << std::endl);
+
     return !doc_info.indexing_error;
 }
 
@@ -464,7 +458,7 @@ void InvertedIndex::internal_dump_index(std::ofstream& output) const {
         output.flush();
     }
 
-    PUT_NUM(output, uint, freq_dictionary.size());
+    PUT_NUM(output, unsigned int, freq_dictionary.size());
     for (auto& word_index : freq_dictionary) {
         output << word_index.first << '\0';
         PUT_NUM(output, uint, word_index.second.index.size());
@@ -493,7 +487,7 @@ bool InvertedIndex::load_index(std::ifstream& input) {
     }
 
     READ_NUM(input, int, dump_version);
-    if (static_cast<int>(dump_version) != _index_dump_version) {
+    if (dump_version != _index_dump_version) {
         std::cerr << "Could not load previously saved index: versions of binary dump do not match." << std::endl;
         return false;
     }
@@ -514,6 +508,8 @@ bool InvertedIndex::internal_load_index(std::ifstream& input) {
 
     READ_NUM(input, uint, docs_amount);
 
+    if (docs_amount == 0) return true;
+
     for (uint i = 0; i < docs_amount; ++i) {
         READ_NUM(input, uint, doc_id);
         if (docs_info.size() < doc_id + 1) docs_info.resize(doc_id + 1);
@@ -523,10 +519,10 @@ bool InvertedIndex::internal_load_index(std::ifstream& input) {
         doc_info.indexed = true;
     }
 
-    READ_NUM(input, uint, dict_size);
+    READ_NUM(input, unsigned int, dict_size);
 
     docs_amount = docs_info.size();
-    for (uint i = 0; i < dict_size; ++i) {
+    for (unsigned int i = 0; i < dict_size; ++i) {
         std::string word;
         std::getline(input, word, '\0');
         auto& word_index = freq_dictionary[word];

@@ -29,8 +29,17 @@ public:
 
     ConverterJSON() = default;
 
+    /**
+    * Initializes object by passed config file. Equivalent of:
+    *   ConverterJSON conv;
+    *   conv.reload_config_file(filepath);
+    * @param config_file configuration file to use for initialization
+    */
     explicit ConverterJSON(const std::string& config_file);
 
+    /**
+    * Creates 'config.json' and 'requests.json' templates in the executable directory
+    */
     void create_templates();
 
     /**
@@ -74,15 +83,54 @@ public:
     */
     void put_answers(const std::vector<std::vector<RelativeIndex>>& answers, std::string& filepath) const;
 
-    void files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const;
-
+    /**
+    * Dumps status of index base to json file by passed filepath
+    * @param filepath path to the file to dump info to
+    * @param docs_info status of documents in index base
+    */
     void files_status(const std::string& filepath, const std::vector<DocInfo>& docs_info) const;
 
+    /**
+    * Dumps status of selected documents from index base to json file by passed filepath
+    * @param filepath path to the file to dump info to
+    * @param docs_info status of documents in index base
+    * @param ids indexes of documents which info should be dumped
+    */
+    void files_status_by_ids(const std::string& filepath, const std::vector<DocInfo>& docs_info, const std::vector<size_t>& ids) const;
+
+    /**
+    * @return filepath to loaded configuration file
+    */
     const std::string& get_config_path() const;
+
+    /**
+    * @return catalog of loaded configuration file
+    */
     const std::string& get_config_catalog() const;
+
+    /**
+    * @return name without extension of loaded configuration file
+    */
     const std::string& get_config_name() const;
+
+    /**
+    * Adds file to configuration's list of files, if file have not been added yet
+    * @param filepath path to file
+    * @return Id which file acquired in index base
+    */
     size_t add_file(const std::string& filepath);
+
+    /**
+    * Adds passed files to configuration's list of files.
+    * If file with same name already presented, double entry won't be created
+    * @param new_files list of files to add to database
+    */
     void add_files(const std::vector<std::string>& new_files);
+
+    /**
+    * Removes files from configuration's list of files.
+    * @param ids
+    */
     void remove_files(const std::vector<size_t>& ids);
 
 private:

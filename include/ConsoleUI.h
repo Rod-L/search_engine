@@ -19,11 +19,11 @@ namespace ConsoleUI {
     SearchServer server;
 
     void show_help(std::string& params);
-    bool file_exist(const std::string& filepath);
-    bool load_backed_index(std::string& filepath);
+    bool load_backed_index();
     void reload_config(const std::string& filepath);
     void form_index();
     void dump_index();
+    void after_indexation();
     void process_requests(std::string &filepath);
     std::string index_path(const std::string& config_path);
     std::string service_file_path(const std::string& name);
@@ -32,26 +32,49 @@ namespace ConsoleUI {
     void init_commands(std::map<std::string, void (*)(std::string&)> &map);
 }
 
-bool ConsoleUI::file_exist(const std::string& filepath) {
-    std::ifstream backed_index(filepath);
-    if (backed_index.is_open()) {
-        backed_index.close();
-        return true;
+void ConsoleUI::after_indexation() {
+    auto& docs_info = ConsoleUI::server.get_docs_info();
+
+    int config_total = converter.get_text_documents().size();
+    int base_total = docs_info.size();
+    int indexed_total = 0;
+    int index_errors = 0;
+    for (auto& doc_info : docs_info) {
+        if (doc_info.indexed) ++indexed_total;
+        if (doc_info.indexing_error) ++index_errors;
     }
-    return false;
+
+    std::cout << "Indexation have been completed." << std::endl
+        << " Documents listed: " << config_total
+        << ", documents loaded: " << base_total
+        << ", documents indexed: " << indexed_total
+        << ", errors: " << index_errors << std::endl;
+
+    if (index_errors > 0) std::cout << "Use 'BaseStatus' command to generate 'status.json' file and inspect indexation errors." << std::endl;
+
+    if (converter.auto_dump_index) dump_index();
+    else std::cout << "Auto dump disabled. Dump index manually, using 'DumpIndex' command, if necessary." << std::endl;
 }
 
-bool ConsoleUI::load_backed_index(std::string& filepath) {
-    std::ifstream backed_index(filepath, std::ios::binary);
-    if (!backed_index.is_open()) {
-        std::cout << "Could not locate '" << filepath << "'." << std::endl;
+bool ConsoleUI::load_backed_index() {
+    std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
+    std::ifstream file(index_path, std::ios::binary);
+
+    if (!file.is_open()) {
+        std::cerr << "Could not open file '" << index_path << "'." << std::endl;
         return false;
     }
 
-    std::cout << "'" << filepath << "' detected, loading index from file." << std::endl;
-    bool loaded = ConsoleUI::server.load_index(backed_index);
-    backed_index.close();
-    return loaded;
+    ConsoleUI::server.load_index(file);
+    file.close();
+    if (ConsoleUI::server.docs_loaded(ConsoleUI::converter.get_text_documents())) {
+        std::cout << "Index have been loaded from '" << index_path << "'." << std::endl;
+        return true;
+    }
+
+    ConsoleUI::server.clear_index();
+    std::cout << "Index from '" << index_path << "' does not match files listed in configuration file." << std::endl;
+    return false;
 }
 
 std::string ConsoleUI::service_file_path(const std::string& name) {
@@ -80,9 +103,6 @@ void ConsoleUI::dump_index() {
 }
 
 void ConsoleUI::reindex_files() {
-    if (!converter.auto_dump_index) {
-        std::cout << "Auto dump disabled. Dump index manually afterwards, using 'DumpIndex' command, if necessary." << std::endl;
-    }
     server.update_document_base(converter.get_text_documents(), false);
 }
 
@@ -106,27 +126,23 @@ void ConsoleUI::form_index() {
     server.indexation_method = converter.use_independent_dicts_method ? InvertedIndex::IndependentDicts : InvertedIndex::SeparatedAccess;
     server.clear_index();
     const std::vector<std::string>& docs = converter.get_text_documents();
+    if (docs.empty()) return;
+
     std::string index_path = ConsoleUI::index_path(converter.get_config_path());
 
     bool reindex_necessary = true;
 
-    if (file_exist(index_path) && !ConsoleUI::converter.auto_load_index_dump) {
+    if (PathHelper::file_exist(index_path) && !ConsoleUI::converter.auto_load_index_dump) {
         std::cout << "'" << index_path << "' detected, but dump auto load disabled. Load dump manually, using 'LoadIndex', if necessary." << std::endl;
-    } else if (load_backed_index(index_path)) {
-        if (ConsoleUI::server.docs_loaded(docs)) {
-            reindex_necessary = false;
-        } else {
-            std::cout << "Loaded index from file does not match listed files in 'config.json'." << std::endl;
-            server.clear_index();
-        }
+    } else {
+        reindex_necessary = !load_backed_index();
     }
+
+    std::cout << "Documents listed: " << docs.size() << ", documents loaded into base: " << server.get_docs_info().size() << std::endl;
 
     if (!reindex_necessary) return;
 
-    if (docs.empty()) return;
-
     if (!ConsoleUI::converter.auto_reindex) {
-        std::cout << "Documents listed: " << docs.size() << ", documents loaded into base: " << server.get_docs_info().size() << std::endl;
         std::cout << "Auto reindex disabled. Start reindex manually, using 'ReindexFiles', if necessary." << std::endl;
         return;
     }
@@ -189,7 +205,6 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "ReloadConfig",
                 "reload last loaded 'config.json';",
                 [](std::string& params) {
-                    if (ConsoleUI::converter.auto_dump_index) ConsoleUI::dump_index();
                     ConsoleUI::reload_config("");
                 }
         },
@@ -201,7 +216,6 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "   4 filename.json\n"
                 "   ReloadConfigFrom C:/filename.json",
                 [](std::string& params) {
-                    if (ConsoleUI::converter.auto_dump_index) ConsoleUI::dump_index();
                     ConsoleUI::reload_config(params);
                 }
         },
@@ -240,20 +254,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "LoadIndex",
                 "attempts to load index from 'index.bin' in directory of current loaded configuration file.",
                 [](std::string& params) {
-                    std::string index_path = ConsoleUI::index_path(ConsoleUI::converter.get_config_path());
-                    std::ifstream file(index_path, std::ios::binary);
-                    if (file.is_open()) {
-                        ConsoleUI::server.load_index(file);
-                        file.close();
-                        if (ConsoleUI::server.docs_loaded(ConsoleUI::converter.get_text_documents())) {
-                            std::cout << "Index have been loaded from '" << index_path << "'." << std::endl;
-                        } else {
-                            ConsoleUI::server.clear_index();
-                            std::cout << "Index from '" << index_path << "' does not match files listed in configuration file." << std::endl;
-                        }
-                    } else {
-                        std::cerr << "Could not open file '" << index_path << "'." << std::endl;
-                    }
+                    ConsoleUI::load_backed_index();
                 }
         },
         {
@@ -277,9 +278,6 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
 
                     ConsoleUI::converter.add_files(files);
                     ConsoleUI::server.extend_document_base(docs_by_id, false);
-                    if (!ConsoleUI::converter.auto_dump_index) {
-                        std::cout << "Auto dump disabled. Dump index manually afterwards, using 'DumpIndex' command, if necessary." << std::endl;
-                    }
                 }
         },
         {
@@ -305,9 +303,6 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                     }
 
                     ConsoleUI::server.extend_document_base(docs_by_id, false);
-                    if (!ConsoleUI::converter.auto_dump_index) {
-                        std::cout << "Auto dump disabled. Dump index manually afterwards, using 'DumpIndex' command, if necessary." << std::endl;
-                    }
                 }
         },
         {
@@ -336,7 +331,7 @@ ConsoleCommand CONSOLE_COMMANDS[] = {
                 "AddFile",
                 "takes filepath as parameter, adds it to the list of files. Does not start reindexing.",
                 [](std::string& params) {
-                    if (HTTPFetcher::is_url(params) || PathHelper::file_exist(params)) {
+                    if (HTTPFetcher::is_http_link(params) || PathHelper::file_exist(params)) {
                         ConsoleUI::converter.add_file(params);
                         std::cout << "File '" << params << "' have been added." << std::endl;
                     } else {

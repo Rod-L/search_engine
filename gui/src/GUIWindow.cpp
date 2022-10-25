@@ -7,34 +7,45 @@ GUIWindow::GUIWindow(Ui_MainWindow* _ui, RemoteEngine* _remote, QWidget* _parent
     UI = _ui;
     REMOTE = _remote;
 
-    QObject::connect(UI->tableDocuments, &QTableWidget::cellDoubleClicked, this, &GUIWindow::openDocument);
+    init_connects();
+    init_document_actions();
+    init_context_menus();
+}
+
+void GUIWindow::init_connects() {
+    QObject::connect(UI->tableDocuments, &QTableWidget::cellDoubleClicked, [this](int row, int column){
+        openDocumentFromCell(UI->tableDocuments, Auto, 0, row);
+    });
     QObject::connect(UI->tableRecentConfigs, &QTableWidget::cellDoubleClicked, this, &GUIWindow::openRecentConfig);
-    QObject::connect(UI->tableRequestsStory, &QTableWidget::cellClicked, this, &GUIWindow::display_recent_request);
+    QObject::connect(UI->tableRequestsStory, &QTableWidget::cellClicked, this, &GUIWindow::displayRecentRequest);
 
     QObject::connect(UI->tableRequestsStory, &QTableWidget::cellDoubleClicked, [this](int row, int column){
-        reprocess_recent_request(row, column);
+        reprocessRecentRequest(row, column);
     });
     QObject::connect(UI->tableAnswers, &QTableWidget::cellDoubleClicked, [this](int row, int column){
-        openDocumentFromCell(UI->tableAnswers, 0, row);
+        openDocumentFromCell(UI->tableAnswers, Auto, 0, row);
     });
     QObject::connect(UI->pushButton_DumpIndex, &QPushButton::pressed, [this](){
         REMOTE->dump_index();
     });
     QObject::connect(UI->pushButton_LoadIndex, &QPushButton::pressed, [this](){
         REMOTE->load_index();
-        update_documents_table();
+        updateDocumentsTable();
     });
     QObject::connect(UI->actionDisplay_full_filenames, &QAction::toggled, [this](bool state){
         toggleDisplayFullFilenames(UI->tableDocuments, 0, state);
         toggleDisplayFullFilenames(UI->tableRecentConfigs, 0, state);
         toggleDisplayFullFilenames(UI->tableAnswers, 0, state);
     });
+}
 
-    // doc actions menu
+void GUIWindow::init_document_actions() {
     QAction* act;
     auto docMenu = new QMenu;
     act = docMenu->addAction("Open selected");
-    QObject::connect(act, &QAction::triggered, this, &GUIWindow::openDocument);
+    QObject::connect(act, &QAction::triggered, [this](){
+        openDocumentFromCell(UI->tableDocuments, Auto);
+    });
 
     act = docMenu->addAction("Add files");
     QObject::connect(act, &QAction::triggered, this, &GUIWindow::addDocuments);
@@ -44,7 +55,7 @@ GUIWindow::GUIWindow(Ui_MainWindow* _ui, RemoteEngine* _remote, QWidget* _parent
 
     docMenu->addSeparator();
     act = docMenu->addAction("Update table");
-    QObject::connect(act, &QAction::triggered, this, &GUIWindow::update_documents_table);
+    QObject::connect(act, &QAction::triggered, this, &GUIWindow::updateDocumentsTable);
 
     act = docMenu->addAction("Reindex selected");
     QObject::connect(act, &QAction::triggered, this, &GUIWindow::reindexSelected);
@@ -57,35 +68,50 @@ GUIWindow::GUIWindow(Ui_MainWindow* _ui, RemoteEngine* _remote, QWidget* _parent
     QObject::connect(act, &QAction::triggered, this, &GUIWindow::removeSelected);
 
     UI->toolButton_documentActions->setMenu(docMenu);
+}
 
-    // context menus
+void GUIWindow::init_context_menus() {
     UI->tableDocuments->setContextMenuPolicy(Qt::CustomContextMenu);
     QObject::connect(UI->tableDocuments, &QTableWidget::customContextMenuRequested, [this](QPoint pos){
         auto table = UI->tableDocuments;
-        if (table->selectedRanges().empty()) return;
+        auto row = table_current_row(table);
+        if (row < 0) return;
 
         auto& menu = context_menus[table];
         if (menu.isEmpty()) {
-            menu.addAction("Open file", [this](){openDocument();});
-            menu.addAction("Open in browser", [this](){openUrlFromCell(UI->tableDocuments, 0);});
+            menu.addAction("Open file", [this](){openDocumentFromCell(UI->tableDocuments, File);});
+            menu.addAction("Open in internet browser", [this](){openDocumentFromCell(UI->tableDocuments, Site);});
             menu.addSeparator();
             menu.addAction("Reindex", [this](){reindexSelected();});
             menu.addSeparator();
             menu.addAction("Remove", [this](){removeSelected();});
         };
+
+        auto cell = table->item(row, 0);
+        if (cell == nullptr) return;
+        auto filepath = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
+        menu.actions()[1]->setEnabled(HTTPFetcher::is_http_link(filepath.toStdString()));
+
         menu.popup(table->viewport()->mapToGlobal(pos));
     });
 
     UI->tableAnswers->setContextMenuPolicy(Qt::CustomContextMenu);
     QObject::connect(UI->tableAnswers, &QTableWidget::customContextMenuRequested, [this](QPoint pos){
         auto table = UI->tableAnswers;
-        if (table->selectedRanges().empty()) return;
+        auto row = table_current_row(table);
+        if (row < 0) return;
 
         auto& menu = context_menus[table];
         if (menu.isEmpty()) {
-            menu.addAction("Open file", [this](){openDocumentFromCell(UI->tableAnswers, 0);});
-            menu.addAction("Open in browser", [this](){openUrlFromCell(UI->tableAnswers, 0);});
+            menu.addAction("Open file", [this](){openDocumentFromCell(UI->tableAnswers, File);});
+            menu.addAction("Open in internet browser", [this](){openDocumentFromCell(UI->tableAnswers, Site);});
         };
+
+        auto cell = table->item(row, 0);
+        if (cell == nullptr) return;
+        auto filepath = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
+        menu.actions()[1]->setEnabled(HTTPFetcher::is_http_link(filepath.toStdString()));
+
         menu.popup(table->viewport()->mapToGlobal(pos));
     });
 
@@ -97,6 +123,7 @@ GUIWindow::GUIWindow(Ui_MainWindow* _ui, RemoteEngine* _remote, QWidget* _parent
         auto& menu = context_menus[table];
         if (menu.isEmpty()) {
             menu.addAction("Open configuration", [this](){openRecentConfig();});
+            menu.addAction("Open file", [this](){openRecentConfigFile();});
             menu.addAction("Remove entry", [this](){removeRecentConfigEntry();});
         };
         menu.popup(table->viewport()->mapToGlobal(pos));
@@ -109,13 +136,24 @@ GUIWindow::GUIWindow(Ui_MainWindow* _ui, RemoteEngine* _remote, QWidget* _parent
 
         auto& menu = context_menus[table];
         if (menu.isEmpty()) {
-            menu.addAction("Open cached result", [this](){display_recent_request();});
-            menu.addAction("Reprocess request", [this](){reprocess_recent_request();});
+            menu.addAction("Open cached result", [this](){displayRecentRequest();});
+            menu.addAction("Reprocess request", [this](){reprocessRecentRequest();});
         };
         menu.popup(table->viewport()->mapToGlobal(pos));
     });
-
 }
+
+void GUIWindow::resize_table_columns(QTableWidget* table, int filepath_column, int control_width) {
+    table->resizeColumnsToContents();
+
+    if (filepath_column >= 0 && table->columnWidth(filepath_column) > control_width) {
+        table->setColumnWidth(filepath_column, control_width);
+    }
+
+    // resizeColumnsToContents() ignores StretchLastSection flag, workaround:
+    table->horizontalHeader()->setStretchLastSection(false);
+    table->horizontalHeader()->setStretchLastSection(true);
+};
 
 void GUIWindow::save_settings(const std::string& filepath) {
     std::ofstream file(filepath);
@@ -127,6 +165,7 @@ void GUIWindow::save_settings(const std::string& filepath) {
     settings["show_recent_configs"] = UI->actionShow_recent_configurations->isChecked();
     settings["show_recent_requests"] = UI->actionShow_recent_requests->isChecked();
     settings["display_full_filenames"] = UI->actionDisplay_full_filenames->isChecked();
+    settings["show_tooltips"] = UI->actionShow_tooltip->isChecked();
 
     // recent configs list
     auto table = UI->tableRecentConfigs;
@@ -168,6 +207,7 @@ void GUIWindow::load_settings(const std::string& filepath) {
     toggle_setting(UI->actionShow_recent_configurations, "show_recent_configs");
     toggle_setting(UI->actionShow_recent_requests, "show_recent_requests");
     toggle_setting(UI->actionDisplay_full_filenames, "display_full_filenames");
+    toggle_setting(UI->actionShow_tooltip, "show_tooltips");
 
     // recent configs list
     if (settings.contains("recent_configs") && settings["recent_configs"].is_array()) {
@@ -196,8 +236,15 @@ int GUIWindow::table_current_row(QTableWidget *table, int* acceptor) {
 }
 
 void GUIWindow::update_documents_entries(const std::vector<size_t>& ids) {
-    std::vector<DocInfo> status;
-    if (!REMOTE->status(ids, &status)) return;
+    std::vector<DocInfo> acceptor;
+    std::vector<DocInfo>& status = acceptor;
+
+    if (ids.empty()) {
+        if (!REMOTE->full_status()) return;
+        status = REMOTE->current_status;
+    } else {
+        REMOTE->files_status(ids, &status);
+    }
 
     int docs_count = REMOTE->current_status.size();
     auto table = UI->tableDocuments;
@@ -315,8 +362,9 @@ bool GUIWindow::loadConfigFile(const QString& filepath, bool add_recent) {
     UI->checkBox_auto_dump_index->setChecked(REMOTE->auto_dump_index);
     UI->checkBox_auto_load_index_dump->setChecked(REMOTE->auto_load_index_dump);
     UI->checkBox_relative_to_config_folder->setChecked(REMOTE->relative_to_config_folder);
+    UI->checkBox_use_independent_dicts_method->setChecked(REMOTE->use_independent_dicts_method);
 
-    update_documents_table();
+    updateDocumentsTable();
     UI->pushButton_processRequests->setEnabled(true);
     UI->toolButton_documentActions->setEnabled(true);
     index_dump_load_accessibility();
@@ -352,7 +400,7 @@ void GUIWindow::toggleDisplayFullFilenames(QTableWidget* table, int column, bool
         if (cell == nullptr) continue;
         auto filename = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
         std::string full = filename.toStdString();
-        if (state || HTTPFetcher::is_url(full)) {
+        if (state || HTTPFetcher::is_http_link(full)) {
             cell->setText(filename);
         } else {
             std::string repr = PathHelper::file_name(full);
@@ -362,12 +410,15 @@ void GUIWindow::toggleDisplayFullFilenames(QTableWidget* table, int column, bool
     }
 }
 
-void GUIWindow::open_document(const QString& filepath) const {
+void GUIWindow::open_document(const QString& filepath, OpenDocMode mode) const {
     UI->statusbar->showMessage("Opening " + filepath + " ...", 5000);
     auto path = filepath.toStdString();
 
-    if (HTTPFetcher::is_url(path)) {
-        std::string html;
+    bool is_url = HTTPFetcher::is_http_link(path);
+    bool success = false;
+
+    if (is_url && mode == File) {
+        std::stringstream html;
         HTTPFetcher::get_html(path, html);
         path = "gui_tmp.html";
         std::ofstream output(path);
@@ -375,49 +426,33 @@ void GUIWindow::open_document(const QString& filepath) const {
             UI->statusbar->showMessage("Could not create temporary html file for " + filepath, 5000);
             return;
         }
-        output << html;
+        output << html.str();
         output.close();
+
+        success = QDesktopServices::openUrl(QUrl::fromLocalFile(QString::fromStdString(path)));
+    } else if (is_url && (mode == Site || mode == Auto)) {
+        success = QDesktopServices::openUrl(QUrl(filepath, QUrl::TolerantMode));
+    } else {
+        success = QDesktopServices::openUrl(QUrl::fromLocalFile(filepath));
     }
 
-    auto cmd = "\"" + path + "\"";
-    system(cmd.c_str());
+    if (!success) UI->statusbar->showMessage("Could not open " + filepath, 5000);
 }
 
-void GUIWindow::openDocumentFromCell(QTableWidget* table, int column, int row) {
+void GUIWindow::openDocumentFromCell(QTableWidget* table, OpenDocMode mode, int column, int row) {
     if (row < 0 && table_current_row(table, &row) < 0) return;
     auto item = table->item(row, column);
     if (item == nullptr) return;
 
     auto filepath = item->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
-    open_document(filepath);
-}
-
-void GUIWindow::openUrlFromCell(QTableWidget* table, int column, int row) {
-    if (row < 0 && table_current_row(table, &row) < 0) return;
-    auto item = table->item(row, column);
-    if (item == nullptr) return;
-
-    auto str_url = item->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
-    UI->statusbar->showMessage("Opening " + str_url + " ...", 5000);
-
-    if (!HTTPFetcher::is_url(str_url.toStdString())) {
-        open_document(str_url);
-        return;
-    }
-
-    bool success = QDesktopServices::openUrl(QUrl(str_url, QUrl::TolerantMode));
-    if (!success) {
-        UI->statusbar->showMessage("Could not open " + str_url, 5000);
-    }
+    open_document(filepath, mode);
 }
 
 //// slots
 
-void GUIWindow::update_documents_table() {
+void GUIWindow::updateDocumentsTable() {
     update_documents_entries({});
-    UI->tableDocuments->resizeColumnsToContents();
-    UI->tableDocuments->horizontalHeader()->setStretchLastSection(false);
-    UI->tableDocuments->horizontalHeader()->setStretchLastSection(true);
+    resize_table_columns(UI->tableDocuments, 0, 400);
 }
 
 void GUIWindow::removeRecentConfigEntry() {
@@ -475,7 +510,7 @@ void GUIWindow::applyConfigChanges() {
     settings["auto_dump_index"] = UI->checkBox_auto_dump_index->isChecked();
     settings["auto_load_index_dump"] = UI->checkBox_auto_load_index_dump->isChecked();
     settings["relative_to_config_folder"] = UI->checkBox_relative_to_config_folder->isChecked();
-    settings["use_independent_dicts_method"] = UI->checkBox_relative_to_config_folder->isChecked();
+    settings["use_independent_dicts_method"] = UI->checkBox_use_independent_dicts_method->isChecked();
 
     std::ofstream output(config_filepath);
     if (!output.is_open()) {
@@ -515,6 +550,16 @@ void GUIWindow::openRecentConfig(int row, int column) {
     if (cell == nullptr) return;
     auto filepath = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
     loadConfigFile(filepath, false);
+}
+
+void GUIWindow::openRecentConfigFile(int row, int column) {
+    auto table = UI->tableRecentConfigs;
+    if (row < 0 && table_current_row(table, &row) < 0) return;
+
+    auto cell = table->item(row, column);
+    if (cell == nullptr) return;
+    auto filepath = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
+    open_document(filepath);
 }
 
 void GUIWindow::selectAndOpenConfig() {
@@ -569,15 +614,6 @@ void GUIWindow::saveConfigAs() {
     loadConfigFile(filepath, UI->actionShow_recent_configurations->isEnabled());
 }
 
-void GUIWindow::openDocument() {
-    auto selection = UI->tableDocuments->selectedRanges();
-    if (selection.empty()) return;
-
-    auto item = UI->tableDocuments->item(selection[0].topRow(), 0);
-    if (item == nullptr) return;
-    open_document(item->text());
-}
-
 void GUIWindow::addDocuments() {
     auto documents = QFileDialog::getOpenFileNames(this, "Select files to add", "", "Supported files (*.txt *.html);; All files (*.*)");
     if (documents.isEmpty()) return;
@@ -587,7 +623,7 @@ void GUIWindow::addDocuments() {
     for (auto& doc : documents) filenames.push_back(doc.toStdString());
     REMOTE->add_files(filenames);
     REMOTE->save_config(REMOTE->get_filepath());
-    update_documents_table();
+    updateDocumentsTable();
 }
 
 void GUIWindow::addURLs() {
@@ -601,14 +637,14 @@ void GUIWindow::addURLs() {
     std::stringstream text_stream(text.toStdString());
 
     while (std::getline(text_stream, url)) {
-        if (HTTPFetcher::is_url(url)) URLs.push_back(url);
+        if (HTTPFetcher::is_http_link(url)) URLs.push_back(url);
     }
 
     if (URLs.empty()) return;
 
     REMOTE->add_files(URLs);
     REMOTE->save_config(REMOTE->get_filepath());
-    update_documents_table();
+    updateDocumentsTable();
 }
 
 void GUIWindow::processRequest() {
@@ -652,9 +688,7 @@ void GUIWindow::processRequest() {
         ++row;
     }
     toggleDisplayFullFilenames(table, 0, UI->actionDisplay_full_filenames->isChecked());
-    table->resizeColumnsToContents();
-    table->horizontalHeader()->setStretchLastSection(false);
-    table->horizontalHeader()->setStretchLastSection(true);
+    resize_table_columns(table, 0, track_recent_requests ? 400 : 500);
 
     QDateTime request_date;
     request_date.setTime_t(std::time(nullptr));
@@ -665,7 +699,7 @@ void GUIWindow::processRequest() {
 
 void GUIWindow::reindexAll() {
     REMOTE->reindex({});
-    update_documents_table();
+    updateDocumentsTable();
     QTimer::singleShot(2000, this, &GUIWindow::indexationChecker);
 }
 
@@ -711,11 +745,11 @@ void GUIWindow::removeSelected() {
     if (docs.empty()) return;
     REMOTE->remove_files(docs);
     REMOTE->save_config(REMOTE->get_filepath());
-    update_documents_table();
+    updateDocumentsTable();
     UI->statusbar->showMessage("Removal task have been completed.", 3000);
 }
 
-void GUIWindow::display_recent_request(int row, int column) {
+void GUIWindow::displayRecentRequest(int row, int column) {
     if (row < 0 && table_current_row(UI->tableRequestsStory, &row) < 0) return;
 
     auto cell = UI->tableRequestsStory->item(row, column);
@@ -741,7 +775,7 @@ void GUIWindow::display_recent_request(int row, int column) {
     toggleDisplayFullFilenames(table, 0, UI->actionDisplay_full_filenames->isChecked());
 }
 
-void GUIWindow::reprocess_recent_request(int row, int column) {
+void GUIWindow::reprocessRecentRequest(int row, int column) {
     if (row < 0 && table_current_row(UI->tableRequestsStory, &row) < 0) return;
 
     auto cell = UI->tableRequestsStory->item(row, column);
@@ -749,5 +783,23 @@ void GUIWindow::reprocess_recent_request(int row, int column) {
     auto request = cell->text();
     UI->lineEdit_request->setText(request);
     processRequest();
+}
+
+void GUIWindow::toggleShowTooltips(bool state) {
+    UI->line_tooltip1->setVisible(state);
+    UI->line_tooltip2->setVisible(state);
+    UI->line_tooltip3->setVisible(state);
+    UI->line_tooltip4->setVisible(state);
+    UI->line_tooltip5->setVisible(state);
+    UI->line_tooltip6->setVisible(state);
+    UI->line_tooltip7->setVisible(state);
+
+    UI->label_tooltip1->setVisible(state);
+    UI->label_tooltip2->setVisible(state);
+    UI->label_tooltip3->setVisible(state);
+    UI->label_tooltip4->setVisible(state);
+    UI->label_tooltip5->setVisible(state);
+    UI->label_tooltip6->setVisible(state);
+    UI->label_tooltip7->setVisible(state);
 }
 

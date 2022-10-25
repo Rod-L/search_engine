@@ -17,15 +17,19 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 add_executable(${TESTS_PROJECT_NAME}
         TestHelper.h
-        TestHelper.cpp
         TestInvertedIndex.cpp
         TestSearchEngine.cpp
+        TestWordsSplit.cpp
+        TestPathHelper.cpp
+        TestHTTPTextFetcher.cpp
         ../src/ConverterJSON.cpp
         ../src/InvertedIndex.cpp
         ../src/SearchEngine.cpp
         ../shared/src/FilePipes.cpp
         ../shared/src/PathHelper.cpp
         ../shared/src/HTTPTextFetcher.cpp)
+
+#target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE __DEBUG__) # uncomment to see debug messages
 
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE Catch2::Catch2WithMain)
 
@@ -47,6 +51,5 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE cpr::cpr)
 
 ############################################
-
 
 target_include_directories(${TESTS_PROJECT_NAME} PUBLIC ../include ../shared/include)

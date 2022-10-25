@@ -76,15 +76,9 @@ std::string PathHelper::file_extension(const std::string& filepath) {
 }
 
 bool PathHelper::get_text(const std::string& path, std::stringstream& acceptor) {
-    if (HTTPFetcher::is_url(path)) {
-        std::string html;
-        if (!HTTPFetcher::get_html(path, html)) return false;
-        HTTPFetcher::get_text(html, acceptor);
-    } else {
-        std::ifstream file(path);
-        if (!file.is_open()) return false;
-        acceptor << file.rdbuf();
-        acceptor.seekg(0);
-    }
+    std::ifstream file(path);
+    if (!file.is_open()) return false;
+    acceptor << file.rdbuf();
+    acceptor.seekg(0);
     return true;
 }

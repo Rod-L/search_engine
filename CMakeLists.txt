@@ -14,6 +14,8 @@ add_executable(${PROJECT_NAME}
         shared/src/PathHelper.cpp
         shared/src/HTTPTextFetcher.cpp)
 
+#target_compile_definitions(search_engine PRIVATE __DEBUG__) # uncomment to see debug messages
+
 target_include_directories(${PROJECT_NAME} PUBLIC include shared/include)
 
 include(FetchContent)

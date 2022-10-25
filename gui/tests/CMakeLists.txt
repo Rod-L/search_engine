@@ -7,8 +7,7 @@ add_executable(gui_tests
         ../../shared/src/PathHelper.cpp
         ../../shared/src/HTTPTextFetcher.cpp
         ../src/RemoteConfig.cpp
-        #../src/GUIWindow.cpp
-        #../include/GUIWindow.h
+        ../src/ProcessPipe.cpp
         TestRemoteConfig.cpp)
 
 ##############################################

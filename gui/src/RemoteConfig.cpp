@@ -6,65 +6,24 @@ bool RequestAnswer::operator==(const RequestAnswer& other) const {
     return doc_id == other.doc_id && std::abs(rank - other.rank) < 0.0001;
 };
 
-//// Class ProcessPipe
-
-ProcessPipe::ProcessPipe(const std::string& filepath) {
-    executable_filepath = filepath;
-};
-
-ProcessPipe::~ProcessPipe() {
-    if (child_process != nullptr && child_process->state() != QProcess::ProcessState::NotRunning) {
-        child_process->closeWriteChannel();
-        child_process->terminate();
-        child_process->waitForFinished(5000);
-        if (child_process->state() != QProcess::ProcessState::NotRunning) {
-            child_process->kill();
-        }
-        delete child_process;
-    }
-};
-
-bool ProcessPipe::send(const std::string& content) {
-    if (executable_filepath.empty()) return false;
-
-    if (!executable_started) {
-        executable_started = true;
-        child_process = new QProcess;
-        child_process->setProcessChannelMode(QProcess::ForwardedChannels);
-        child_process->start(QString::fromStdString(executable_filepath), {"CONSOLE"}, QIODevice::ReadWrite);
-        child_process->waitForStarted();
-    }
-
-    executable_running = child_process->state() != QProcess::ProcessState::NotRunning;
-    if (!executable_running) {
-        std::string error_message = "Executable '";
-        error_message.append(executable_filepath);
-        error_message.append("' stopped working unexpectedly.");
-        throw std::runtime_error(error_message);
-    }
-
-    child_process->write(content.c_str(), content.size());
-    child_process->write("\n", 1);
-    child_process->waitForBytesWritten();
-    return true;
-};
-
 //// Class RemoteEngine
 
-RemoteEngine::RemoteEngine(RemoteMode mode) {
-    remote_mode = mode;
-    if (mode == RemoteMode::FilePipe) {
-        pipe = std::make_unique<OutputFilePipe>();
-    } else if (mode == RemoteMode::Process) {
-        pipe = std::make_unique<ProcessPipe>();
-    } else {
-        throw std::runtime_error("Incorrect work mode supplied to RemoteEngine object.");
-    }
-    pipe->set_filepath("search_engine");
+RemoteEngine::RemoteEngine(RemoteMode mode, const std::string& executable_path) {
+    start(mode, executable_path);
 }
 
 RemoteEngine::~RemoteEngine() {
-    pipe->send("0");
+    exit();
+}
+
+RemoteEngine::RemoteEngine(const RemoteEngine& other) {
+    copy_from(other);
+}
+
+RemoteEngine& RemoteEngine::operator=(const RemoteEngine& other) {
+    if (this == &other) return *this;
+    copy_from(other);
+    return *this;
 }
 
 int RemoteEngine::indexation_ongoing() {
@@ -80,6 +39,28 @@ const std::string& RemoteEngine::get_filepath() {
 }
 
 //// commands
+
+void RemoteEngine::start(RemoteMode mode, const std::string& executable) {
+    exit();
+    remote_mode = mode;
+    executable_path = executable;
+
+    if (remote_mode == RemoteMode::FilePipe) {
+        pipe = new OutputFilePipe;
+    } else if (remote_mode == RemoteMode::Process) {
+        pipe = new ProcessPipe;
+    } else {
+        throw std::runtime_error("Invalid remote mode supplied to remote engine.");
+    }
+    pipe->set_filepath(executable_path);
+}
+
+void RemoteEngine::exit() {
+    if (pipe == nullptr) return;
+    pipe->send("0");
+    delete pipe;
+    pipe = nullptr;
+}
 
 bool RemoteEngine::process_request(const std::string& request, std::vector<RequestAnswer>& acceptor) {
     if (!operable()) return false;
@@ -135,7 +116,7 @@ bool RemoteEngine::process_request(const std::string& request, std::vector<Reque
 }
 
 bool RemoteEngine::load_config(const std::string& filepath) {
-    if (load_file(filepath)) {
+    if (load_config_file(filepath)) {
         current_status.clear();
         pipe->send("ReloadConfigFrom " + filepath);
         return true;
@@ -145,7 +126,7 @@ bool RemoteEngine::load_config(const std::string& filepath) {
 
 void RemoteEngine::reload_config() {
     if (!operable()) return;
-    load_file(config_filepath);
+    load_config_file(config_filepath);
     pipe->send("ReloadConfig");
 }
 
@@ -183,79 +164,41 @@ void RemoteEngine::reindex(const std::vector<size_t>& docs) {
     }
 };
 
-bool RemoteEngine::status(const std::vector<size_t>& docs, std::vector<DocInfo>* acceptor) {
+bool RemoteEngine::full_status() {
     if (!operable()) return false;
 
-    bool full_status = false;
-    std::string status_filepath;
-    if (docs.empty()) {
-        full_status = true;
-        status_filepath = catalog + file_name + ".status.json";
-        std::remove(status_filepath.c_str());
-        pipe->send("BaseStatus");
-    } else {
-        status_filepath = catalog + file_name + ".status_part.json";
-        std::remove(status_filepath.c_str());
-        std::stringstream commands;
-        commands << "FileStatus ";
-        for (size_t doc_id : docs) {
-            commands << std::to_string(doc_id) << ' ';
-        }
-        commands << std::endl;
-        pipe->send(commands.str());
-    }
+    std::string status_filepath = catalog + file_name + ".status.json";
+    std::remove(status_filepath.c_str());
+    pipe->send("BaseStatus");
 
     if (!wait_for_file(status_filepath)) return false;
+    current_status.clear();
+    return parse_status_file(status_filepath);
+}
 
-    std::ifstream status_file(status_filepath);
-    if (!status_file.is_open()) {
-        std::cerr << "Could not open '" << status_filepath << "'." << std::endl;
-        return false;
-    }
+bool RemoteEngine::files_status(const std::vector<size_t>& docs, std::vector<DocInfo>* acceptor) {
+    if (!operable()) return false;
 
-    nlohmann::json status;
-    try {
-        status = nlohmann::json::parse(status_file);
-        status_file.close();
-    } catch(...) {
-        status_file.close();
-        std::cerr << "Error while parsing '" << status_filepath << "'." << std::endl;
-        return false;
-    }
+    std::string status_filepath = catalog + file_name + ".status_part.json";
+    std::remove(status_filepath.c_str());
 
-    size_t max_doc_id = 0;
-    int entries_count = status["doc_id"].size();
-    if (entries_count == 0) return true;
+    std::stringstream commands;
+    commands << "FileStatus ";
+    for (size_t doc_id : docs) commands << std::to_string(doc_id) << ' ';
+    commands << std::endl;
 
-    for (int i = 0; i < entries_count; ++i) max_doc_id = std::max(max_doc_id, status["doc_id"][i].get<size_t>());
-    if (full_status) current_status.resize(entries_count);
-    if (current_status.size() < max_doc_id + 1) current_status.resize(max_doc_id + 1);
-
-    for (int i = 0; i < entries_count; ++i) {
-        size_t doc_id = status["doc_id"][i].get<size_t>();
-        auto& doc_info = current_status[doc_id];
-        doc_info.doc_id = status["doc_id"][i].get<int>();
-        doc_info.indexed = status["indexed"][i].get<bool>();
-        doc_info.indexing_in_progress = status["indexing_in_progress"][i].get<bool>();
-        doc_info.indexing_error = status["indexing_error"][i].get<bool>();
-
-        doc_info.index_date = status["index_date"][i].get<time_t>();
-        doc_info.error_text = status["error_text"][i].get<std::string>();
-        doc_info.filepath = status["filepath"][i].get<std::string>();
-    }
+    pipe->send(commands.str());
+    if (!wait_for_file(status_filepath)) return false;
+    bool success = parse_status_file(status_filepath);
 
     if (acceptor != nullptr) {
-        if (full_status) {
-            *acceptor = current_status;
-        } else {
-            acceptor->reserve(entries_count);
-            for (size_t doc_id : docs) {
-                if (doc_id <= max_doc_id) acceptor->push_back(current_status[doc_id]);
-            }
+        for (auto doc_id : docs) {
+            if (doc_id < current_status.size()) acceptor->push_back(current_status[doc_id]);
         }
     }
-    return true;
-};
+
+    return success;
+}
 
 void RemoteEngine::add_files(const std::vector<std::string>& files) {
     if (!operable()) return;
@@ -283,7 +226,28 @@ void RemoteEngine::remove_files(const std::vector<size_t>& docs) {
 //// Private members
 
 bool RemoteEngine::operable() const {
-    return !config_filepath.empty();
+    return pipe != nullptr && !config_filepath.empty();
+}
+
+void RemoteEngine::copy_from(const RemoteEngine& other) {
+    exit();
+
+    executable_path = other.executable_path;
+    remote_mode     = other.remote_mode;
+    config_filepath = other.config_filepath;
+    file_name       = other.file_name;
+    catalog         = other.catalog;
+    name            = other.name;
+    max_responses   = other.max_responses;
+    current_status  = other.current_status;
+    auto_reindex    = other.auto_reindex;
+    auto_dump_index = other.auto_dump_index;
+    max_indexation_threads  = other.max_indexation_threads;
+    auto_load_index_dump    = other.auto_load_index_dump;
+    relative_to_config_folder       = other.relative_to_config_folder;
+    use_independent_dicts_method    = other.use_independent_dicts_method;
+
+    if (other.pipe != nullptr) start(remote_mode, executable_path);
 }
 
 bool RemoteEngine::wait_for_file(const std::string& filepath, int timeout_s) {
@@ -297,7 +261,7 @@ bool RemoteEngine::wait_for_file(const std::string& filepath, int timeout_s) {
     }
 }
 
-bool RemoteEngine::load_file(const std::string& filepath) {
+bool RemoteEngine::load_config_file(const std::string& filepath) {
     nlohmann::json config;
 
     std::ifstream file(filepath);
@@ -345,3 +309,43 @@ bool RemoteEngine::load_file(const std::string& filepath) {
     config_filepath = filepath;
     return true;
 };
+
+bool RemoteEngine::parse_status_file(const std::string& filepath) {
+    std::ifstream status_file(filepath);
+    if (!status_file.is_open()) {
+        std::cerr << "Could not open '" << filepath << "'." << std::endl;
+        return false;
+    }
+
+    nlohmann::json status;
+    try {
+        status = nlohmann::json::parse(status_file);
+        status_file.close();
+    } catch(...) {
+        status_file.close();
+        std::cerr << "Error while parsing '" << filepath << "'." << std::endl;
+        return false;
+    }
+
+    size_t max_doc_id = 0;
+    int entries_count = status["doc_id"].size();
+    for (int i = 0; i < entries_count; ++i) max_doc_id = std::max(max_doc_id, status["doc_id"][i].get<size_t>());
+    if (current_status.size() <= max_doc_id) current_status.resize(max_doc_id + 1);
+
+    for (int i = 0; i < entries_count; ++i) {
+        size_t doc_id = status["doc_id"][i].get<size_t>();
+        auto& doc_info = current_status[doc_id];
+
+        doc_info.doc_id = status["doc_id"][i].get<int>();
+        doc_info.indexed = status["indexed"][i].get<bool>();
+        doc_info.indexing_in_progress = status["indexing_in_progress"][i].get<bool>();
+        doc_info.indexing_error = status["indexing_error"][i].get<bool>();
+
+        doc_info.index_date = status["index_date"][i].get<time_t>();
+        doc_info.error_text = status["error_text"][i].get<std::string>();
+        doc_info.filepath = status["filepath"][i].get<std::string>();
+    }
+
+    return true;
+}
+

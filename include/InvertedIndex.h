@@ -9,8 +9,12 @@
 #include <ctime>
 #include <thread>
 #include <mutex>
+#include <cassert>
 
 #include "DocInfoStruct.h"
+#include "PathHelper.h"
+#include "HTTPTextFetcher.h"
+#include "DebugMessages.h"
 
 struct Entry {
     size_t doc_id, count;
@@ -36,8 +40,11 @@ public:
     int max_indexation_threads = 4;
     IndexationMethod indexation_method = SeparatedAccess;
 
+    void(*indexation_over_callback)() = nullptr;
+
     InvertedIndex() = default;
     InvertedIndex(const InvertedIndex& other);
+    InvertedIndex& operator=(const InvertedIndex& other);
     ~InvertedIndex();
 
     /**
@@ -115,7 +122,7 @@ protected:
 
 private:
     bool interrupt_indexation = false;
-    static const int _index_dump_version = 2;
+    static const int _index_dump_version = 3;
 
     std::mutex docs_access;
     std::vector<DocInfo> docs_info;

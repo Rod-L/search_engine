@@ -60,6 +60,13 @@
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout">
             <item>
+             <widget class="QPushButton" name="pushButton_openConfiguration">
+              <property name="text">
+               <string>Open configuration</string>
+              </property>
+             </widget>
+            </item>
+            <item>
              <widget class="QPushButton" name="pushButton_removeRecentConfigEntry">
               <property name="text">
                <string>Remove entry</string>
@@ -120,7 +127,7 @@
         <bool>true</bool>
        </property>
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <property name="elideMode">
         <enum>Qt::ElideNone</enum>
@@ -162,6 +169,13 @@
            </item>
            <item>
             <widget class="QLineEdit" name="lineEdit_ConfigName"/>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip1">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -216,6 +230,29 @@
             </layout>
            </item>
            <item>
+            <widget class="QLabel" name="label_tooltip1">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>Amount of search results to be written to &quot;aswers.json&quot; file after processing request</string>
+             </property>
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
             <layout class="QHBoxLayout" name="horizontalLayout_3">
              <item>
               <widget class="QSpinBox" name="spinBox_max_indexation_threads">
@@ -256,9 +293,37 @@
             </layout>
            </item>
            <item>
+            <widget class="QLabel" name="label_tooltip2">
+             <property name="text">
+              <string>Maximum amount of threads to use for files indexation</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QCheckBox" name="checkBox_auto_dump_index">
              <property name="text">
               <string>auto_dump_index</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_tooltip3">
+             <property name="text">
+              <string>Whether index should be saved automatically at end of work with configuration file</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip4">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -270,9 +335,37 @@
             </widget>
            </item>
            <item>
+            <widget class="QLabel" name="label_tooltip4">
+             <property name="text">
+              <string>Whether to try to find and load previously saved index on configuration openning or not </string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip5">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QCheckBox" name="checkBox_auto_reindex">
              <property name="text">
               <string>auto_reindex</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_tooltip5">
+             <property name="text">
+              <string>Whether indexation should start automatically on configuration openning, if none files in base are indexed</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip6">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -284,9 +377,30 @@
             </widget>
            </item>
            <item>
+            <widget class="QLabel" name="label_tooltip6">
+             <property name="text">
+              <string>Relative file paths, listed in &quot;files&quot; section of  configuration file, are relative to configuration file directory</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="Line" name="line_tooltip7">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QCheckBox" name="checkBox_use_independent_dicts_method">
              <property name="text">
               <string>use_independent_dicts_method</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_tooltip7">
+             <property name="text">
+              <string>Higher memory consumption, but more indexation threads available - better performance</string>
              </property>
             </widget>
            </item>
@@ -656,6 +770,7 @@
     </property>
     <addaction name="actionShow_recent_configurations"/>
     <addaction name="actionShow_recent_requests"/>
+    <addaction name="actionShow_tooltip"/>
     <addaction name="actionDisplay_full_filenames"/>
    </widget>
    <widget class="QMenu" name="menuFile">
@@ -748,6 +863,17 @@
    </property>
    <property name="text">
     <string>Display full filenames</string>
+   </property>
+  </action>
+  <action name="actionShow_tooltip">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Show tooltips</string>
    </property>
   </action>
  </widget>
@@ -1057,6 +1183,38 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>actionShow_tooltip</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>toggleShowTooltips(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>506</x>
+     <y>307</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pushButton_openConfiguration</sender>
+   <signal>clicked()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>openRecentConfig()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>60</x>
+     <y>43</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>506</x>
+     <y>307</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>enableConfigChangesControls()</slot>
@@ -1064,10 +1222,11 @@
   <slot>revertConfigChanges()</slot>
   <slot>removeRecentConfigEntry()</slot>
   <slot>newConfig()</slot>
-  <slot>openDocument()</slot>
   <slot>addDocuments()</slot>
   <slot>selectAndOpenConfig()</slot>
   <slot>saveConfigAs()</slot>
   <slot>processRequest()</slot>
+  <slot>toggleShowTooltips(bool)</slot>
+  <slot>openRecentConfig()</slot>
  </slots>
 </ui>

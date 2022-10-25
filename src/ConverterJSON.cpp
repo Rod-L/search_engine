@@ -117,7 +117,7 @@ void ConverterJSON::load_config_json(json& config) {
     for (int doc_id = 0; doc_id < config["files"].size(); ++doc_id) {
         std::string filename = config["files"][doc_id];
         config_files.push_back(filename);
-        if (HTTPFetcher::is_url(filename)) {
+        if (HTTPFetcher::is_http_link(filename)) {
             files.push_back(filename);
         } else if (relative_to_config_folder && PathHelper::is_relative(filename)) {
             files.push_back(PathHelper::combine_path(config_catalog, filename));
@@ -127,8 +127,8 @@ void ConverterJSON::load_config_json(json& config) {
     }
 
     if (files.empty()) {
-        std::cout << "List of files to index in the 'config.json' is empty. "
-                     "Update 'config.json' and run 'ReloadConfig' command." << std::endl;
+        std::cout << "List of files to index in the '" << config_name << "' is empty. "
+                     "Update '" << config_name << "' and run 'ReloadConfig' command." << std::endl;
     }
 }
 

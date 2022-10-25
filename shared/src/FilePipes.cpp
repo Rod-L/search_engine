@@ -1,5 +1,17 @@
 #include "FilePipes.h"
 
+//// OutputPipeInterface class
+
+void OutputPipeInterface::set_filepath(const std::string& filepath) {
+    executable_filepath = filepath;
+};
+
+const std::string& OutputPipeInterface::get_filepath() const {
+    return executable_filepath;
+};
+
+//// FilePipeInterface class
+
 void FilePipeInterface::lock(const std::string& my_token, const std::string& other_token) {
     while (true) {
         std::string current_token;
@@ -73,6 +85,8 @@ OutputFilePipe::OutputFilePipe(const std::string& filepath) {
 };
 
 void OutputFilePipe::set_filepath(const std::string& filepath) {
+    if (executable_started) return;
+
     executable_filepath = filepath;
 
     std::stringstream name_plate;

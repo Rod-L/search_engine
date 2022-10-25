@@ -5,8 +5,9 @@
     "auto_reindex": false,
     "max_indexation_threads": 2,
     "max_responses": 5,
-    "name": "SkillboxSearchEngine",
+    "name": "Cyrilics example",
     "relative_to_config_folder": true,
+    "use_independent_dicts_method": false,
     "version": "0.1"
   },
   "files": [

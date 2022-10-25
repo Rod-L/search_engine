@@ -16,7 +16,9 @@ public:
     */
     std::vector<std::vector<RelativeIndex>> search(const std::vector<std::string>& queries_input, int responses_limit = 0);
 
-    /** clears underlying inverted index*/
+    /**
+    * clears underlying inverted index
+    */
     void clear_index();
 
 private:

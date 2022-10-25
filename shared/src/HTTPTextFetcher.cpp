@@ -1,6 +1,6 @@
 #include "HTTPTextFetcher.h"
 
-bool HTTPFetcher::is_url(const std::string& str_url) {
+bool HTTPFetcher::is_http_link(const std::string& str_url) {
     return str_url.size() > 8 && str_url.substr(0,4) == "http" && str_url.find("://") != std::string::npos;
 }
 
@@ -8,26 +8,22 @@ bool HTTPFetcher::is_html(const std::string& str_url) {
     return str_url.substr(str_url.size() - 5, 5) == ".html";
 }
 
-bool HTTPFetcher::get_html(const std::string& url, std::string& acceptor) {
-    auto response = cpr::Get(cpr::Url{url}, cpr::Header({{"accept", "text/*"}}));
+bool HTTPFetcher::get_html(const std::string& http_link, std::stringstream& acceptor) {
+    auto response = cpr::Get(cpr::Url{http_link}, cpr::Header({{"accept", "text/*"}}));
     if (response.status_code != 200) return false;
-    acceptor = response.text;
+    acceptor.str(response.text);
     return true;
 }
 
-void HTTPFetcher::get_text(const std::string& html, std::stringstream& acceptor) {
-    std::stringstream input;
-    input.str(html);
-
+void HTTPFetcher::get_text(std::stringstream& html, std::stringstream& acceptor) {
     acceptor.str("");
-
     std::string buf;
     while(true) {
-        std::getline(input, buf, '>');
+        std::getline(html, buf, '>');
         if (buf.substr(0, 6) == "script" || buf.substr(0, 5) == "style") continue;
-        input >> std::ws;
-        std::getline(input, buf, '<');
-        if (input.eof()) break;
+        html >> std::ws;
+        std::getline(html, buf, '<');
+        if (html.eof()) break;
         acceptor << buf << std::endl;
     }
 }

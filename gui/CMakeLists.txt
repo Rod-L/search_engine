@@ -15,6 +15,7 @@ add_executable(gui
         src/main.cpp
         src/RemoteConfig.cpp
         src/GUIWindow.cpp
+        src/ProcessPipe.cpp
         include/GUIWindow.h)
 
 #set_property(TARGET gui PROPERTY WIN32_EXECUTABLE true)

@@ -5,11 +5,11 @@
 using json = nlohmann::json;
 
 TEST_CASE("RemoteConfig_General") {
-    RemoteEngine premote(RemoteMode::Process);
-    premote.pipe->send("0");
+    RemoteEngine premote(RemoteEngine::Process, "search_engine");
+    premote.exit();
 
-    RemoteEngine fremote(RemoteMode::FilePipe);
-    fremote.pipe->send("0");
+    RemoteEngine fremote(RemoteEngine::FilePipe, "search_engine");
+    fremote.exit();
 }
 
 //// Base functions
@@ -73,10 +73,10 @@ void test_all_commands(RemoteEngine* remote) {
 
     auto wait_reindex = [remote](const std::vector<size_t>& docs) {
         remote->reindex(docs);
-        REQUIRE(remote->status(docs));
+        REQUIRE((docs.empty() ? remote->full_status() : remote->files_status(docs)));
         while (remote->indexation_ongoing()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            REQUIRE(remote->status(docs));
+            REQUIRE((docs.empty() ? remote->full_status() : remote->files_status(docs)));
         }
     };
 
@@ -123,12 +123,12 @@ void test_all_commands(RemoteEngine* remote) {
     REQUIRE(answers == expected);
 
     // add / remove files
-    remote->status({});
+    remote->full_status();
     int old_size = remote->current_status.size();
     std::string additional_file = "test_all_commands_addition.txt";
     make_text_file(additional_file, "addition");
     remote->add_files({additional_file});
-    remote->status({});
+    remote->full_status();
     REQUIRE(remote->current_status.size() == old_size + 1);
 
     size_t add_doc_id = remote->current_status.size() - 1;
@@ -145,19 +145,20 @@ void test_all_commands(RemoteEngine* remote) {
     REQUIRE(answers.empty());
     REQUIRE(remote->process_request("text1 text2", answers));
     REQUIRE(answers == expected);
-    remote->status({});
+    remote->full_status();
     REQUIRE(remote->current_status.size() == old_size);
+    remote->exit();
 
     delete_test_db(config_filepath);
 }
 
 TEST_CASE("RemoteConfig_AllCommands") {
     SECTION("File pipe mode") {
-        RemoteEngine remote(RemoteMode::FilePipe);
+        RemoteEngine remote(RemoteEngine::FilePipe, "search_engine");
         test_all_commands(&remote);
     }
     SECTION("Child process mode") {
-        RemoteEngine remote(RemoteMode::Process);
+        RemoteEngine remote(RemoteEngine::Process, "search_engine");
         test_all_commands(&remote);
     }
 }
