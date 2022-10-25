@@ -1,32 +1,24 @@
-#include <catch2/catch_test_macros.hpp>
-#include "InvertedIndex.h"
+#include "TestHelper.h"
 #include "SearchEngine.h"
 
-void FillDB(InvertedIndex& indexer) {
+void FillDB(SearchServer& server) {
     std::string doc, content;
-    bool success;
 
-    doc = "Test doc 1.txt";
-    content = "Word1 Word1 Word1 Word1 Word2 Word3";
-    success = indexer.add_document(0, doc, content);
-    REQUIRE(success == true);
+    std::vector<std::string> texts = {
+            "Word1 Word1 Word1 Word1 Word2 Word3",
+            "Word1 Word2 Word4",
+            "Word1 Word1 Word2 Word4"
+    };
 
-    doc = "Test doc 2.txt";
-    content = "Word1 Word2 Word4";
-    success = indexer.add_document(1, doc, content);
-    REQUIRE(success == true);
-
-    doc = "Test doc 3.txt";
-    content = "Word1 Word1 Word2 Word4";
-    success = indexer.add_document(2, doc, content);
-    REQUIRE(success == true);
+    std::vector<std::string> filenames;
+    make_test_files(texts, filenames);
+    server.update_document_base(filenames, true);
+    remove_test_files(filenames);
 }
 
 TEST_CASE("SearchEngine_Search_1") {
-    InvertedIndex indexer;
-    FillDB(indexer);
-
-    SearchServer server(indexer);
+    SearchServer server;
+    FillDB(server);
     std::vector<std::string> queries{"Word1"};
     auto result = server.search(queries);
 
@@ -42,10 +34,8 @@ TEST_CASE("SearchEngine_Search_1") {
 }
 
 TEST_CASE("SearchEngine_Search_2") {
-    InvertedIndex indexer;
-    FillDB(indexer);
-
-    SearchServer server(indexer);
+    SearchServer server;
+    FillDB(server);
     std::vector<std::string> queries{"Word4 Word1 Word1", "Word3"};
     auto result = server.search(queries);
 
@@ -77,9 +67,12 @@ TEST_CASE("SearchEngine_Search_3") {
             {
             }
     };
-    InvertedIndex idx;
-    idx.update_text_base(docs);
-    SearchServer srv(idx);
+
+    SearchServer srv;
+    std::vector<std::string> filenames;
+    make_test_files(docs, filenames);
+    srv.update_document_base(filenames, true);
+    remove_test_files(filenames);
     std::vector<std::vector<RelativeIndex>> result = srv.search(request);
     REQUIRE(result == expected);
 }
@@ -120,9 +113,12 @@ TEST_CASE("SearchEngine_Search_Top5") {
                     {2, 0.666666687}
             }
     };
-    InvertedIndex idx;
-    idx.update_text_base(docs);
-    SearchServer srv(idx);
+
+    SearchServer srv;
+    std::vector<std::string> filenames;
+    make_test_files(docs, filenames);
+    srv.update_document_base(filenames, true);
+    remove_test_files(filenames);
 
     std::vector<std::vector<RelativeIndex>> result = srv.search(request, 5);
 

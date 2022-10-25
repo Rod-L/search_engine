@@ -2,29 +2,111 @@
 #include <map>
 
 #include "ConsoleUI.h"
+#include "FilePipes.h"
 
-int main() {
-    auto docs = ConsoleUI::converter.get_text_documents();
-    if (!docs.empty()) ConsoleUI::server.update_document_base(docs);
-
-    std::map<std::string, void(*)()> commands;
-    init_commands(commands);
-
-    std::cout << "Enter 'Help' to get list of commands." << std::endl;
+bool process_command_line(const std::string& line, const std::map<std::string, void(*)(std::string&)>& commands) {
     std::string command;
+    std::string params;
 
+    std::stringstream parser(line);
+    parser >> command;
+    parser >> std::ws;
+    std::getline(parser, params);
+
+    if (command.empty()) return true;
+    DEBUG_MSG("Processing command: " << command << ' ' << params << std::endl);
+
+    auto func = commands.find(command);
+    if (func == commands.end()) {
+        if (command == "0" || command == "Exit") {
+            std::cout << "Exiting..." << std::endl;
+            return false;
+        }
+
+        std::cout << "Unknown command: " << command << std::endl;
+        return true;
+    }
+
+    func->second(params);
+    return true;
+}
+
+void command_line_mode(const std::string& path, const std::map<std::string, void(*)(std::string&)>& commands) {
+    std::string line;
+    ConsoleUI::converter.create_templates();
+    ConsoleUI::converter.reload_config_file(path);
+    ConsoleUI::form_index();
+    std::cout << "Enter 'Help' to get list of commands." << std::endl;
     while (true) {
-        std::cin >> command;
+        std::getline(std::cin, line);
+        if (!process_command_line(line, commands)) return;
+    }
+}
 
-        auto func = commands.find(command);
-        if (func == commands.end()) {
-            if (command == "0" || command == "Exit") return 0;
-
-            std::cout << "Unknown command: " << command << std::endl;
+void filepipe_mode(const std::string& path, const std::map<std::string, void(*)(std::string&)>& commands) {
+    std::cout << "FILEPIPE mode started." << std::endl;
+    DEBUG_MSG("pipe: " << path << std::endl);
+    std::string line;
+    InputFilePipe ipipe(path);
+    while (true) {
+        if (!ipipe.get(line)) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(250));
             continue;
         }
 
-        func->second();
+        std::stringstream pipe_commands(line);
+        std::string command;
+        while (std::getline(pipe_commands, command)) {
+            if (!process_command_line(command, commands)) {
+                std::remove(path.c_str());
+                return;
+            }
+        }
+    }
+}
+
+/*
+Command line params:
+ [communication method] [filepath]
+
+ Method - CONSOLE, filepath - optional - path to config for initial load.
+ Method - FILEPIPE, filepath - required - path to pipe file to use for IPC.
+
+ default: CONSOLE config.json
+*/
+int main(int argc, char *argv[]) {
+    std::string mode;
+    std::string path;
+
+    if (argc < 2) {
+        mode = "CONSOLE";
+        path = "config.json";
+    } else {
+        mode = argv[1];
+        if (mode == "CONSOLE") {
+            path = (argc > 2 ? argv[2] : "config.json");
+        } else if (mode == "FILEPIPE") {
+            if (argc < 3) {
+                std::cerr << "'FILEPIPE' working mode selected, but path to .pipe file have not been supplied!"
+                          << std::endl;
+                return 1;
+            }
+            path = argv[2];
+        } else {
+            std::cerr << "Unknown working mode supplied: " << mode << std::endl;
+            std::cerr << "Allowed modes are: CONSOLE, FILEPIPE" << std::endl;
+            return 1;
+        }
+    }
+
+    std::map<std::string, void(*)(std::string&)> commands;
+    ConsoleUI::init_commands(commands);
+    ConsoleUI::server.indexation_over_callback = &ConsoleUI::after_indexation;
+
+    if (mode == "CONSOLE") {
+        command_line_mode(path, commands);
+    } else {
+        filepipe_mode(path, commands);
     }
 }
 

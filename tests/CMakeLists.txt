@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_CXX_STANDARD 17)
 set(TESTS_PROJECT_NAME tests)
+set(CATCH_CONFIG_ENABLE_BENCHMARKING true)
 
 ############################################
 # Build the test framework
@@ -15,11 +16,20 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 add_executable(${TESTS_PROJECT_NAME}
+        TestHelper.h
         TestInvertedIndex.cpp
         TestSearchEngine.cpp
+        TestWordsSplit.cpp
+        TestPathHelper.cpp
+        TestHTTPTextFetcher.cpp
         ../src/ConverterJSON.cpp
         ../src/InvertedIndex.cpp
-        ../src/SearchEngine.cpp)
+        ../src/SearchEngine.cpp
+        ../shared/src/FilePipes.cpp
+        ../shared/src/PathHelper.cpp
+        ../shared/src/HTTPTextFetcher.cpp)
+
+#target_compile_definitions(${TESTS_PROJECT_NAME} PRIVATE __DEBUG__) # uncomment to see debug messages
 
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE Catch2::Catch2WithMain)
 
@@ -33,7 +43,13 @@ catch_discover_tests(${TESTS_PROJECT_NAME})
 
 target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE nlohmann_json::nlohmann_json)
 
+##############################################
+# CPR - http support
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+target_link_libraries(${TESTS_PROJECT_NAME} PRIVATE cpr::cpr)
+
 ############################################
 
-
-target_include_directories(${TESTS_PROJECT_NAME} PUBLIC ../include)
+target_include_directories(${TESTS_PROJECT_NAME} PUBLIC ../include ../shared/include)
