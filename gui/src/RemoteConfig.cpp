@@ -327,10 +327,16 @@ bool RemoteEngine::parse_status_file(const std::string& filepath) {
         return false;
     }
 
-    size_t max_doc_id = 0;
+
     int entries_count = status["doc_id"].size();
-    for (int i = 0; i < entries_count; ++i) max_doc_id = std::max(max_doc_id, status["doc_id"][i].get<size_t>());
-    if (current_status.size() <= max_doc_id) current_status.resize(max_doc_id + 1);
+
+    if (entries_count > 0) {
+        size_t max_doc_id = 0;
+        for (int i = 0; i < entries_count; ++i) max_doc_id = std::max(max_doc_id, status["doc_id"][i].get<size_t>());
+        if (current_status.size() <= max_doc_id) current_status.resize(max_doc_id + 1);
+    } else {
+        return true;
+    }
 
     for (int i = 0; i < entries_count; ++i) {
         size_t doc_id = status["doc_id"][i].get<size_t>();

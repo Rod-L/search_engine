@@ -373,6 +373,9 @@ bool GUIWindow::loadConfigFile(const QString& filepath, bool add_recent) {
     UI->tableAnswers->setRowCount(0);
     UI->lineEdit_request->clear();
     UI->statusbar->showMessage(filepath + " loaded successfully", 3000);
+
+    if (REMOTE->auto_reindex) QTimer::singleShot(2000, this, &GUIWindow::indexationChecker);
+
     return true;
 }
 
