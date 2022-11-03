@@ -1,4 +1,4 @@
-**Simple index and search engine with support of multithread indexing and runtime index extension.**
+### Simple index and search engine with support of multithread indexing and runtime index extension.
 
 #### Dependencies:
 JSON library - https://github.com/nlohmann/json \
@@ -14,7 +14,7 @@ Optional GUI subproject requires Qt 5.15: https://www.qt.io
 - engine is designed to be used as a child process of other application, thus can be easily embed into existing solution;
 
 
-#### Quick start
+### Quick start
 1. Browse CMakeLists.txt in root folder of the project: enable / disable desired features (gui, tests, debug info) according to comments.
 2. Build search_engine.
 
@@ -31,7 +31,7 @@ Optional GUI subproject requires Qt 5.15: https://www.qt.io
 **If you're willing to use engine as child process of host application, refer to API documentation and 'RemoteEngine' class of gui subproject as example.**
 
 
-#### Examples.
+### Examples
 
 Project contains 'examples' folder with configuration files and sample texts inside its subfolders.\
 If you use engine in console mode: 
@@ -41,3 +41,6 @@ If you use engine in console mode:
 If you use gui subproject:
 1. Select 'Open configuration' in 'File' context menu.
 2. Inspect 'Documents' tab and make search requests to see engine in work.
+
+### License
+CC0 Free software
