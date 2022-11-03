@@ -26,9 +26,11 @@ void GUIWindow::init_connects() {
         openDocumentFromCell(UI->tableAnswers, Auto, 0, row);
     });
     QObject::connect(UI->pushButton_DumpIndex, &QPushButton::pressed, [this](){
+        UI->statusbar->showMessage("Starting to dump index to configuration directory...", 3000);
         REMOTE->dump_index();
     });
     QObject::connect(UI->pushButton_LoadIndex, &QPushButton::pressed, [this](){
+        UI->statusbar->showMessage("Attempting to load index from configuration directory...", 3000);
         REMOTE->load_index();
         updateDocumentsTable();
     });
@@ -124,6 +126,8 @@ void GUIWindow::init_context_menus() {
         if (menu.isEmpty()) {
             menu.addAction("Open configuration", [this](){openRecentConfig();});
             menu.addAction("Open file", [this](){openRecentConfigFile();});
+            menu.addAction("Open directory", [this](){openRecentConfigCatalog();});
+            menu.addSeparator();
             menu.addAction("Remove entry", [this](){removeRecentConfigEntry();});
         };
         menu.popup(table->viewport()->mapToGlobal(pos));
@@ -279,6 +283,42 @@ void GUIWindow::update_documents_entries(const std::vector<size_t>& ids) {
     toggleDisplayFullFilenames(table, 0, UI->actionDisplay_full_filenames->isChecked());
 }
 
+void GUIWindow::write_gui_settings(nlohmann::json& config) {
+    auto& settings = config["config"];
+    settings["name"] = UI->lineEdit_ConfigName->text().toStdString();
+    settings["max_responses"] = UI->spinBox_max_responses->value();
+    settings["max_indexation_threads"] = UI->spinBox_max_indexation_threads->value();
+    settings["auto_reindex"] = UI->checkBox_auto_reindex->isChecked();
+    settings["auto_dump_index"] = UI->checkBox_auto_dump_index->isChecked();
+    settings["auto_load_index_dump"] = UI->checkBox_auto_load_index_dump->isChecked();
+    settings["relative_to_config_folder"] = UI->checkBox_relative_to_config_folder->isChecked();
+    settings["use_independent_dicts_method"] = UI->checkBox_use_independent_dicts_method->isChecked();
+}
+
+void GUIWindow::write_remote_settings(nlohmann::json& config) {
+    auto& settings = config["config"];
+    settings["name"] = REMOTE->name;
+    settings["max_responses"] = REMOTE->max_responses;
+    settings["max_indexation_threads"] = REMOTE->max_indexation_threads;
+    settings["auto_reindex"] = REMOTE->auto_reindex;
+    settings["auto_dump_index"] = REMOTE->auto_dump_index;
+    settings["auto_load_index_dump"] = REMOTE->auto_load_index_dump;
+    settings["relative_to_config_folder"] = REMOTE->relative_to_config_folder;
+    settings["use_independent_dicts_method"] = REMOTE->use_independent_dicts_method;
+}
+
+void GUIWindow::write_default_settings(nlohmann::json& config) {
+    auto& settings = config["config"];
+    settings["name"] = "configuration template";
+    settings["max_responses"] = 5;
+    settings["max_indexation_threads"] = 4;
+    settings["auto_reindex"] = false;
+    settings["auto_dump_index"] = true;
+    settings["auto_load_index_dump"] = true;
+    settings["relative_to_config_folder"] = true;
+    settings["use_independent_dicts_method"] = false;
+}
+
 const QTableWidgetItem& GUIWindow::add_recent_config(const QString& config_path) {
     auto table = UI->tableRecentConfigs;
 
@@ -373,6 +413,9 @@ bool GUIWindow::loadConfigFile(const QString& filepath, bool add_recent) {
     UI->tableAnswers->setRowCount(0);
     UI->lineEdit_request->clear();
     UI->statusbar->showMessage(filepath + " loaded successfully", 3000);
+
+    if (REMOTE->auto_reindex) QTimer::singleShot(2000, this, &GUIWindow::indexationChecker);
+
     return true;
 }
 
@@ -390,7 +433,7 @@ void GUIWindow::indexationChecker() {
         update_documents_entries(ids);
         QTimer::singleShot(2000, this, &GUIWindow::indexationChecker);
     } else {
-        UI->statusbar->showMessage("All indexation tasks have been finished.", 3000);
+        UI->statusbar->showMessage("All indexation tasks have been finished.");
     }
 }
 
@@ -471,18 +514,18 @@ void GUIWindow::removeRecentConfigEntry() {
 
 void GUIWindow::enableConfigChangesControls() {
     UI->pushButton_applyConfigChanges->setEnabled(true);
-    UI->pushButton_revertConfigChanges->setEnabled(true);
+    if (!REMOTE->get_filepath().empty()) UI->pushButton_revertConfigChanges->setEnabled(true);
 }
 
 void GUIWindow::applyConfigChanges() {
     UI->pushButton_applyConfigChanges->setEnabled(false);
     UI->pushButton_revertConfigChanges->setEnabled(false);
 
-    bool new_config = false;
     std::string config_filepath = REMOTE->get_filepath();
     if (config_filepath.empty()) {
-        new_config = true;
-        config_filepath = "gui_new_config.json";
+        newConfig(false);
+        index_dump_load_accessibility();
+        return;
     }
 
     std::ifstream file(config_filepath);
@@ -502,15 +545,7 @@ void GUIWindow::applyConfigChanges() {
         }
     }
 
-    auto& settings = config["config"];
-    settings["name"] = UI->lineEdit_ConfigName->text().toStdString();
-    settings["max_responses"] = UI->spinBox_max_responses->value();
-    settings["max_indexation_threads"] = UI->spinBox_max_indexation_threads->value();
-    settings["auto_reindex"] = UI->checkBox_auto_reindex->isChecked();
-    settings["auto_dump_index"] = UI->checkBox_auto_dump_index->isChecked();
-    settings["auto_load_index_dump"] = UI->checkBox_auto_load_index_dump->isChecked();
-    settings["relative_to_config_folder"] = UI->checkBox_relative_to_config_folder->isChecked();
-    settings["use_independent_dicts_method"] = UI->checkBox_use_independent_dicts_method->isChecked();
+    write_gui_settings(config);
 
     std::ofstream output(config_filepath);
     if (!output.is_open()) {
@@ -520,11 +555,7 @@ void GUIWindow::applyConfigChanges() {
     output << config.dump(2);
     output.close();
 
-    if (new_config) {
-        loadConfigFile(QString::fromStdString(config_filepath), UI->actionShow_recent_configurations->isEnabled());
-    } else {
-        REMOTE->reload_config();
-    }
+    REMOTE->reload_config();
     index_dump_load_accessibility();
 }
 
@@ -552,6 +583,20 @@ void GUIWindow::openRecentConfig(int row, int column) {
     loadConfigFile(filepath, false);
 }
 
+void GUIWindow::openRecentConfigCatalog(int row, int column) {
+    auto table = UI->tableRecentConfigs;
+    if (row < 0 && table_current_row(table, &row) < 0) return;
+
+    auto cell = table->item(row, column);
+    if (cell == nullptr) return;
+    auto filepath = cell->data(GUI_FILEPATH_DATA_ROLE).value<QString>();
+
+    QString dir = QString::fromStdString(PathHelper::catalog_from_filepath(filepath.toStdString()));
+    bool success = QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
+
+    if (!success) UI->statusbar->showMessage("Unable to open directory: " + dir, 8000);
+}
+
 void GUIWindow::openRecentConfigFile(int row, int column) {
     auto table = UI->tableRecentConfigs;
     if (row < 0 && table_current_row(table, &row) < 0) return;
@@ -572,7 +617,7 @@ void GUIWindow::selectAndOpenConfig() {
     loadConfigFile(filepath, UI->actionShow_recent_configurations->isEnabled());
 }
 
-void GUIWindow::newConfig() {
+void GUIWindow::newConfig(bool use_defaults) {
     QString caption = "Select file to save configuration to";
     QString filter = "JSON Files (*.json)";
     auto filepath = QFileDialog::getSaveFileName(this, caption, "", filter);
@@ -584,18 +629,17 @@ void GUIWindow::newConfig() {
     config["config"] = {};
     config["files"] = json::array();
 
-    auto& settings = config["config"];
-    settings["name"] = "configuration template";
-    settings["max_responses"] = 5;
-    settings["max_indexation_threads"] = 4;
-    settings["auto_reindex"] = false;
-    settings["auto_dump_index"] = true;
-    settings["auto_load_index_dump"] = true;
-    settings["relative_to_config_folder"] = true;
+    if (use_defaults) {
+        write_default_settings(config);
+    } else {
+        write_gui_settings(config);
+    }
 
+    std::remove(config_filepath.c_str());
     std::ofstream file(config_filepath);
     if (!file.is_open()) {
         std::cerr << "Could not open file '" << config_filepath << "'." << std::endl;
+        UI->statusbar->showMessage(QString::fromStdString("Could not open file :" + config_filepath));
         return;
     }
     file << config.dump(2);
@@ -783,23 +827,5 @@ void GUIWindow::reprocessRecentRequest(int row, int column) {
     auto request = cell->text();
     UI->lineEdit_request->setText(request);
     processRequest();
-}
-
-void GUIWindow::toggleShowTooltips(bool state) {
-    UI->line_tooltip1->setVisible(state);
-    UI->line_tooltip2->setVisible(state);
-    UI->line_tooltip3->setVisible(state);
-    UI->line_tooltip4->setVisible(state);
-    UI->line_tooltip5->setVisible(state);
-    UI->line_tooltip6->setVisible(state);
-    UI->line_tooltip7->setVisible(state);
-
-    UI->label_tooltip1->setVisible(state);
-    UI->label_tooltip2->setVisible(state);
-    UI->label_tooltip3->setVisible(state);
-    UI->label_tooltip4->setVisible(state);
-    UI->label_tooltip5->setVisible(state);
-    UI->label_tooltip6->setVisible(state);
-    UI->label_tooltip7->setVisible(state);
 }
 

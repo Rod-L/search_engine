@@ -103,6 +103,8 @@ void InvertedIndex::indexation_queue_handler() {
 }
 
 void InvertedIndex::extend_document_base(const std::map<size_t,std::string>& docs_by_id, bool wait_for_completion) {
+    if (docs_by_id.empty()) return;
+
     docs_access.lock();
     size_t max_id = 0;
     for (auto& pair : docs_by_id) {

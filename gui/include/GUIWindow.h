@@ -61,6 +61,10 @@ private:
     void init_document_actions();
     void update_documents_entries(const std::vector<size_t>& ids);
 
+    void write_gui_settings(nlohmann::json& config);
+    void write_remote_settings(nlohmann::json& config);
+    void write_default_settings(nlohmann::json& config);
+
     static void resize_table_columns(QTableWidget* table, int filepath_column = -1, int control_width = 100);
     static int table_current_row(QTableWidget* table, int* acceptor = nullptr);
 
@@ -77,8 +81,9 @@ public slots:
     void revertConfigChanges();
     void selectAndOpenConfig();
     void openRecentConfig(int row = -1, int column = 0);
+    void openRecentConfigCatalog(int row = -1, int column = 0);
     void openRecentConfigFile(int row = -1, int column = 0);
-    void newConfig();
+    void newConfig(bool use_defaults = true);
     void saveConfigAs();
     void addDocuments();
     void addURLs();
@@ -88,6 +93,5 @@ public slots:
     void removeSelected();
     void displayRecentRequest(int row = -1, int column = 0);
     void reprocessRecentRequest(int row = -1, int column = 0);
-    void toggleShowTooltips(bool state);
 };
 

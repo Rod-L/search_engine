@@ -2,7 +2,7 @@
   "config": {
     "auto_dump_index": false,
     "auto_load_index_dump": false,
-    "auto_reindex": false,
+    "auto_reindex": true,
     "max_indexation_threads": 5,
     "max_responses": 5,
     "name": "empty config",
@@ -10,5 +10,7 @@
     "use_independent_dicts_method": false,
     "version": "0.1"
   },
-  "files": []
+  "files": [
+    "C:/Users/ESRod/CLionProjects/search_engine/cmake-build-debug/Sample 1.txt"
+  ]
 }

@@ -122,8 +122,6 @@ std::vector<size_t> ConsoleUI::parse_ids(std::string &str_ids) {
 }
 
 void ConsoleUI::form_index() {
-    server.max_indexation_threads = converter.max_indexation_threads;
-    server.indexation_method = converter.use_independent_dicts_method ? InvertedIndex::IndependentDicts : InvertedIndex::SeparatedAccess;
     server.clear_index();
     const std::vector<std::string>& docs = converter.get_text_documents();
     if (docs.empty()) return;

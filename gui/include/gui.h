@@ -1,13 +1,13 @@
 /********************************************************************************
-** Form generated from reading UI file 'guiwLyDqT.ui'
+** Form generated from reading UI file 'guivNgzka.ui'
 **
 ** Created by: Qt User Interface Compiler version 5.15.2
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
 
-#ifndef GUIWLYDQT_H
-#define GUIWLYDQT_H
+#ifndef GUIVNGZKA_H
+#define GUIVNGZKA_H
 
 #include <QtCore/QVariant>
 #include <QtWidgets/QAction>
@@ -70,28 +70,15 @@ public:
     QSpinBox *spinBox_max_responses;
     QLabel *label;
     QSpacerItem *horizontalSpacer_2;
-    QLabel *label_tooltip1;
-    QFrame *line_tooltip2;
     QHBoxLayout *horizontalLayout_3;
     QSpinBox *spinBox_max_indexation_threads;
     QLabel *label_2;
     QSpacerItem *horizontalSpacer_3;
-    QLabel *label_tooltip2;
-    QFrame *line_tooltip3;
     QCheckBox *checkBox_auto_dump_index;
-    QLabel *label_tooltip3;
-    QFrame *line_tooltip4;
     QCheckBox *checkBox_auto_load_index_dump;
-    QLabel *label_tooltip4;
-    QFrame *line_tooltip5;
     QCheckBox *checkBox_auto_reindex;
-    QLabel *label_tooltip5;
-    QFrame *line_tooltip6;
     QCheckBox *checkBox_relative_to_config_folder;
-    QLabel *label_tooltip6;
-    QFrame *line_tooltip7;
     QCheckBox *checkBox_use_independent_dicts_method;
-    QLabel *label_tooltip7;
     QSpacerItem *verticalSpacer;
     QHBoxLayout *horizontalLayout_4;
     QSpacerItem *horizontalSpacer;
@@ -163,6 +150,8 @@ public:
         actionShow_tooltip->setObjectName(QString::fromUtf8("actionShow_tooltip"));
         actionShow_tooltip->setCheckable(true);
         actionShow_tooltip->setChecked(true);
+        actionShow_tooltip->setEnabled(false);
+        actionShow_tooltip->setVisible(false);
         centralwidget = new QWidget(MainWindow);
         centralwidget->setObjectName(QString::fromUtf8("centralwidget"));
         gridLayout_4 = new QGridLayout(centralwidget);
@@ -290,24 +279,6 @@ public:
 
         verticalLayout->addLayout(horizontalLayout_2);
 
-        label_tooltip1 = new QLabel(tabSettings);
-        label_tooltip1->setObjectName(QString::fromUtf8("label_tooltip1"));
-        QSizePolicy sizePolicy3(QSizePolicy::Expanding, QSizePolicy::Preferred);
-        sizePolicy3.setHorizontalStretch(0);
-        sizePolicy3.setVerticalStretch(0);
-        sizePolicy3.setHeightForWidth(label_tooltip1->sizePolicy().hasHeightForWidth());
-        label_tooltip1->setSizePolicy(sizePolicy3);
-        label_tooltip1->setWordWrap(true);
-
-        verticalLayout->addWidget(label_tooltip1);
-
-        line_tooltip2 = new QFrame(tabSettings);
-        line_tooltip2->setObjectName(QString::fromUtf8("line_tooltip2"));
-        line_tooltip2->setFrameShape(QFrame::HLine);
-        line_tooltip2->setFrameShadow(QFrame::Sunken);
-
-        verticalLayout->addWidget(line_tooltip2);
-
         horizontalLayout_3 = new QHBoxLayout();
         horizontalLayout_3->setObjectName(QString::fromUtf8("horizontalLayout_3"));
         spinBox_max_indexation_threads = new QSpinBox(tabSettings);
@@ -330,95 +301,30 @@ public:
 
         verticalLayout->addLayout(horizontalLayout_3);
 
-        label_tooltip2 = new QLabel(tabSettings);
-        label_tooltip2->setObjectName(QString::fromUtf8("label_tooltip2"));
-
-        verticalLayout->addWidget(label_tooltip2);
-
-        line_tooltip3 = new QFrame(tabSettings);
-        line_tooltip3->setObjectName(QString::fromUtf8("line_tooltip3"));
-        line_tooltip3->setFrameShape(QFrame::HLine);
-        line_tooltip3->setFrameShadow(QFrame::Sunken);
-
-        verticalLayout->addWidget(line_tooltip3);
-
         checkBox_auto_dump_index = new QCheckBox(tabSettings);
         checkBox_auto_dump_index->setObjectName(QString::fromUtf8("checkBox_auto_dump_index"));
 
         verticalLayout->addWidget(checkBox_auto_dump_index);
-
-        label_tooltip3 = new QLabel(tabSettings);
-        label_tooltip3->setObjectName(QString::fromUtf8("label_tooltip3"));
-
-        verticalLayout->addWidget(label_tooltip3);
-
-        line_tooltip4 = new QFrame(tabSettings);
-        line_tooltip4->setObjectName(QString::fromUtf8("line_tooltip4"));
-        line_tooltip4->setFrameShape(QFrame::HLine);
-        line_tooltip4->setFrameShadow(QFrame::Sunken);
-
-        verticalLayout->addWidget(line_tooltip4);
 
         checkBox_auto_load_index_dump = new QCheckBox(tabSettings);
         checkBox_auto_load_index_dump->setObjectName(QString::fromUtf8("checkBox_auto_load_index_dump"));
 
         verticalLayout->addWidget(checkBox_auto_load_index_dump);
 
-        label_tooltip4 = new QLabel(tabSettings);
-        label_tooltip4->setObjectName(QString::fromUtf8("label_tooltip4"));
-
-        verticalLayout->addWidget(label_tooltip4);
-
-        line_tooltip5 = new QFrame(tabSettings);
-        line_tooltip5->setObjectName(QString::fromUtf8("line_tooltip5"));
-        line_tooltip5->setFrameShape(QFrame::HLine);
-        line_tooltip5->setFrameShadow(QFrame::Sunken);
-
-        verticalLayout->addWidget(line_tooltip5);
-
         checkBox_auto_reindex = new QCheckBox(tabSettings);
         checkBox_auto_reindex->setObjectName(QString::fromUtf8("checkBox_auto_reindex"));
 
         verticalLayout->addWidget(checkBox_auto_reindex);
-
-        label_tooltip5 = new QLabel(tabSettings);
-        label_tooltip5->setObjectName(QString::fromUtf8("label_tooltip5"));
-
-        verticalLayout->addWidget(label_tooltip5);
-
-        line_tooltip6 = new QFrame(tabSettings);
-        line_tooltip6->setObjectName(QString::fromUtf8("line_tooltip6"));
-        line_tooltip6->setFrameShape(QFrame::HLine);
-        line_tooltip6->setFrameShadow(QFrame::Sunken);
-
-        verticalLayout->addWidget(line_tooltip6);
 
         checkBox_relative_to_config_folder = new QCheckBox(tabSettings);
         checkBox_relative_to_config_folder->setObjectName(QString::fromUtf8("checkBox_relative_to_config_folder"));
 
         verticalLayout->addWidget(checkBox_relative_to_config_folder);
 
-        label_tooltip6 = new QLabel(tabSettings);
-        label_tooltip6->setObjectName(QString::fromUtf8("label_tooltip6"));
-
-        verticalLayout->addWidget(label_tooltip6);
-
-        line_tooltip7 = new QFrame(tabSettings);
-        line_tooltip7->setObjectName(QString::fromUtf8("line_tooltip7"));
-        line_tooltip7->setFrameShape(QFrame::HLine);
-        line_tooltip7->setFrameShadow(QFrame::Sunken);
-
-        verticalLayout->addWidget(line_tooltip7);
-
         checkBox_use_independent_dicts_method = new QCheckBox(tabSettings);
         checkBox_use_independent_dicts_method->setObjectName(QString::fromUtf8("checkBox_use_independent_dicts_method"));
 
         verticalLayout->addWidget(checkBox_use_independent_dicts_method);
-
-        label_tooltip7 = new QLabel(tabSettings);
-        label_tooltip7->setObjectName(QString::fromUtf8("label_tooltip7"));
-
-        verticalLayout->addWidget(label_tooltip7);
 
         verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
@@ -462,11 +368,11 @@ public:
         toolButton_documentActions = new QToolButton(tabDocuments);
         toolButton_documentActions->setObjectName(QString::fromUtf8("toolButton_documentActions"));
         toolButton_documentActions->setEnabled(false);
-        QSizePolicy sizePolicy4(QSizePolicy::Minimum, QSizePolicy::Minimum);
-        sizePolicy4.setHorizontalStretch(0);
-        sizePolicy4.setVerticalStretch(0);
-        sizePolicy4.setHeightForWidth(toolButton_documentActions->sizePolicy().hasHeightForWidth());
-        toolButton_documentActions->setSizePolicy(sizePolicy4);
+        QSizePolicy sizePolicy3(QSizePolicy::Minimum, QSizePolicy::Minimum);
+        sizePolicy3.setHorizontalStretch(0);
+        sizePolicy3.setVerticalStretch(0);
+        sizePolicy3.setHeightForWidth(toolButton_documentActions->sizePolicy().hasHeightForWidth());
+        toolButton_documentActions->setSizePolicy(sizePolicy3);
         toolButton_documentActions->setMinimumSize(QSize(150, 0));
         toolButton_documentActions->setCheckable(false);
         toolButton_documentActions->setPopupMode(QToolButton::InstantPopup);
@@ -591,11 +497,11 @@ public:
         QTableWidgetItem *__qtablewidgetitem8 = new QTableWidgetItem();
         tableAnswers->setHorizontalHeaderItem(1, __qtablewidgetitem8);
         tableAnswers->setObjectName(QString::fromUtf8("tableAnswers"));
-        QSizePolicy sizePolicy5(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        sizePolicy5.setHorizontalStretch(1);
-        sizePolicy5.setVerticalStretch(0);
-        sizePolicy5.setHeightForWidth(tableAnswers->sizePolicy().hasHeightForWidth());
-        tableAnswers->setSizePolicy(sizePolicy5);
+        QSizePolicy sizePolicy4(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        sizePolicy4.setHorizontalStretch(1);
+        sizePolicy4.setVerticalStretch(0);
+        sizePolicy4.setHeightForWidth(tableAnswers->sizePolicy().hasHeightForWidth());
+        tableAnswers->setSizePolicy(sizePolicy4);
         tableAnswers->setEditTriggers(QAbstractItemView::NoEditTriggers);
         tableAnswers->horizontalHeader()->setDefaultSectionSize(100);
         tableAnswers->horizontalHeader()->setStretchLastSection(true);
@@ -659,10 +565,9 @@ public:
         QObject::connect(pushButton_processRequests, SIGNAL(clicked()), MainWindow, SLOT(processRequest()));
         QObject::connect(lineEdit_request, SIGNAL(returnPressed()), MainWindow, SLOT(processRequest()));
         QObject::connect(checkBox_use_independent_dicts_method, SIGNAL(clicked()), MainWindow, SLOT(enableConfigChangesControls()));
-        QObject::connect(actionShow_tooltip, SIGNAL(toggled(bool)), MainWindow, SLOT(toggleShowTooltips(bool)));
         QObject::connect(pushButton_openConfiguration, SIGNAL(clicked()), MainWindow, SLOT(openRecentConfig()));
 
-        tabWidget->setCurrentIndex(1);
+        tabWidget->setCurrentIndex(0);
 
 
         QMetaObject::connectSlotsByName(MainWindow);
@@ -670,7 +575,7 @@ public:
 
     void retranslateUi(QMainWindow *MainWindow)
     {
-        MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "MainWindow", nullptr));
+        MainWindow->setWindowTitle(QCoreApplication::translate("MainWindow", "Skillbox search engine", nullptr));
         actionShow_recent_configurations->setText(QCoreApplication::translate("MainWindow", "Show recent configurations", nullptr));
         actionShow_recent_requests->setText(QCoreApplication::translate("MainWindow", "Show recent requests", nullptr));
         actionOpen_configuration->setText(QCoreApplication::translate("MainWindow", "Open configuration", nullptr));
@@ -686,20 +591,13 @@ public:
         QTableWidgetItem *___qtablewidgetitem = tableRecentConfigs->horizontalHeaderItem(0);
         ___qtablewidgetitem->setText(QCoreApplication::translate("MainWindow", "Recent configurations", nullptr));
         labelConfigFilepath->setText(QCoreApplication::translate("MainWindow", "Create new or open existing configuration to start working", nullptr));
-        label->setText(QCoreApplication::translate("MainWindow", "max_responses", nullptr));
-        label_tooltip1->setText(QCoreApplication::translate("MainWindow", "Amount of search results to be written to \"aswers.json\" file after processing request", nullptr));
-        label_2->setText(QCoreApplication::translate("MainWindow", "max_indexation_threads", nullptr));
-        label_tooltip2->setText(QCoreApplication::translate("MainWindow", "Maximum amount of threads to use for files indexation", nullptr));
-        checkBox_auto_dump_index->setText(QCoreApplication::translate("MainWindow", "auto_dump_index", nullptr));
-        label_tooltip3->setText(QCoreApplication::translate("MainWindow", "Whether index should be saved automatically at end of work with configuration file", nullptr));
-        checkBox_auto_load_index_dump->setText(QCoreApplication::translate("MainWindow", "auto_load_index_dump", nullptr));
-        label_tooltip4->setText(QCoreApplication::translate("MainWindow", "Whether to try to find and load previously saved index on configuration openning or not ", nullptr));
-        checkBox_auto_reindex->setText(QCoreApplication::translate("MainWindow", "auto_reindex", nullptr));
-        label_tooltip5->setText(QCoreApplication::translate("MainWindow", "Whether indexation should start automatically on configuration openning, if none files in base are indexed", nullptr));
-        checkBox_relative_to_config_folder->setText(QCoreApplication::translate("MainWindow", "relative_to_config_folder", nullptr));
-        label_tooltip6->setText(QCoreApplication::translate("MainWindow", "Relative file paths, listed in \"files\" section of  configuration file, are relative to configuration file directory", nullptr));
-        checkBox_use_independent_dicts_method->setText(QCoreApplication::translate("MainWindow", "use_independent_dicts_method", nullptr));
-        label_tooltip7->setText(QCoreApplication::translate("MainWindow", "Higher memory consumption, but more indexation threads available - better performance", nullptr));
+        label->setText(QCoreApplication::translate("MainWindow", "Amount of search results to be written to \"answers.json\" file after request processed", nullptr));
+        label_2->setText(QCoreApplication::translate("MainWindow", "Maximum amount of threads to use for files indexation", nullptr));
+        checkBox_auto_dump_index->setText(QCoreApplication::translate("MainWindow", "Save index automatically at end of work with configuration", nullptr));
+        checkBox_auto_load_index_dump->setText(QCoreApplication::translate("MainWindow", "Load previously saved index at configuration startup, if one exists", nullptr));
+        checkBox_auto_reindex->setText(QCoreApplication::translate("MainWindow", "Start full indexation automatically on configuration startup, if none files in base are indexed", nullptr));
+        checkBox_relative_to_config_folder->setText(QCoreApplication::translate("MainWindow", "Relative file paths, listed in \"files\" section of  configuration file, are relative to configuration file directory", nullptr));
+        checkBox_use_independent_dicts_method->setText(QCoreApplication::translate("MainWindow", "Use an alternative indexing method: higher memory consumption, but the more indexing threads, the higher the performance.", nullptr));
         pushButton_applyConfigChanges->setText(QCoreApplication::translate("MainWindow", "Apply", nullptr));
         pushButton_revertConfigChanges->setText(QCoreApplication::translate("MainWindow", "Revert", nullptr));
         tabWidget->setTabText(tabWidget->indexOf(tabSettings), QCoreApplication::translate("MainWindow", "Settings", nullptr));
@@ -752,4 +650,4 @@ namespace Ui {
 
 QT_END_NAMESPACE
 
-#endif // GUIWLYDQT_H
+#endif // GUIVNGZKA_H
