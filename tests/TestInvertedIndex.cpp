@@ -19,6 +19,7 @@ bool have_match(const Entry& value, std::vector<Entry>& entries) {
 }
 
 void TestInvertedIndexFunctionality(
+        InvertedIndex::IndexationMethod indexation_method,
         const std::vector<std::string>& docs,
         const std::vector<std::string>& requests,
         const std::vector<std::vector<Entry>>& expected) {
@@ -29,6 +30,7 @@ void TestInvertedIndexFunctionality(
     for (int i = 0; i < 100; ++i) {
         std::vector<std::vector<Entry>> result;
         InvertedIndex idx;
+        idx.indexation_method = indexation_method;
         idx.update_document_base(test_files, true);
 
         for (auto &request: requests) {
@@ -73,7 +75,8 @@ TEST_CASE("InvertedIndex_TestBasic") {
                     {1, 3}, {0, 1}
             }
     };
-    TestInvertedIndexFunctionality(docs, requests, expected);
+    TestInvertedIndexFunctionality(InvertedIndex::SeparatedAccess, docs, requests, expected);
+    TestInvertedIndexFunctionality(InvertedIndex::IndependentDicts, docs, requests, expected);
 }
 
 TEST_CASE("InvertedIndex_TestBasic2") {
@@ -95,7 +98,8 @@ TEST_CASE("InvertedIndex_TestBasic2") {
                     {3, 1}
             }
     };
-    TestInvertedIndexFunctionality(docs, requests, expected);
+    TestInvertedIndexFunctionality(InvertedIndex::SeparatedAccess, docs, requests, expected);
+    TestInvertedIndexFunctionality(InvertedIndex::IndependentDicts, docs, requests, expected);
 }
 
 TEST_CASE("InvertedIndex_IndexExtension") {
@@ -144,6 +148,8 @@ TEST_CASE("InvertedIndex_IndexationPerformance") {
             filenames[0],
     };
 
+    std::cout << "Hardware concurrency, threads available: " << std::thread::hardware_concurrency();
+
     BENCHMARK("Indexation: separated access, 1 thread") {
         InvertedIndex idx;
         idx.max_indexation_threads = 1;
@@ -154,6 +160,20 @@ TEST_CASE("InvertedIndex_IndexationPerformance") {
     BENCHMARK("Indexation: independent dicts, 1 thread") {
         InvertedIndex idx;
         idx.max_indexation_threads = 1;
+        idx.indexation_method = InvertedIndex::IndependentDicts;
+        idx.update_document_base(docs, true);
+    };
+
+    BENCHMARK("Indexation: separated access, 2 threads") {
+        InvertedIndex idx;
+        idx.max_indexation_threads = 2;
+        idx.indexation_method = InvertedIndex::SeparatedAccess;
+        idx.update_document_base(docs, true);
+    };
+
+    BENCHMARK("Indexation: independent dicts, 2 threads") {
+        InvertedIndex idx;
+        idx.max_indexation_threads = 2;
         idx.indexation_method = InvertedIndex::IndependentDicts;
         idx.update_document_base(docs, true);
     };
@@ -216,7 +236,8 @@ TEST_CASE("InvertedIndex_MissingWord") {
                     {1, 1}
             }
     };
-    TestInvertedIndexFunctionality(docs, requests, expected);
+    TestInvertedIndexFunctionality(InvertedIndex::SeparatedAccess, docs, requests, expected);
+    TestInvertedIndexFunctionality(InvertedIndex::IndependentDicts, docs, requests, expected);
 }
 
 TEST_CASE("InvertedIndex_URLContent") {
