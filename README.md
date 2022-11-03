@@ -4,7 +4,7 @@
 JSON library - https://github.com/nlohmann/json \
 C++ requests - https://github.com/libcpr/cpr \
 Test framework - https://github.com/catchorg/Catch2.git \
-Three above are fetched and installed automatically by CMake
+Three above are fetched and installed automatically by CMake\
 Optional GUI subproject requires Qt 5.15: https://www.qt.io
 
 #### Features:
