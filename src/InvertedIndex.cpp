@@ -362,36 +362,40 @@ void InvertedIndex::index_doc(size_t doc_id, StreamT& stream) {
 
 //// Indexation independent dicts method
 
-void InvertedIndex::merge_dict(std::map<std::string, WordIndex>& destination, std::map<std::string, WordIndex>& source) {
-    for (auto& word_index : source) {
-        word_index.second.access.lock();
-        auto& word = word_index.first;
-        auto& index = word_index.second.index;
-        auto& dest_index = destination[word].index;
-        for (auto& entry : index) {
-            dest_index[entry.first] = entry.second;
+void InvertedIndex::merge_dict(std::map<std::string, std::map<int,int>>& source) {
+    freq_dict_access.lock();
+    for (auto& pair : source) {
+        auto& word_index = freq_dictionary[pair.first];
+        word_index.access.lock();
+        auto& index = word_index.index;
+        for (auto& entry : pair.second) {
+            auto& doc_index = index[static_cast<size_t>(entry.first)];
+            doc_index.doc_id = entry.first;
+            doc_index.count = entry.second;
         }
-        word_index.second.access.unlock();
+        word_index.access.unlock();
     }
+    freq_dict_access.unlock();
 }
 
-void InvertedIndex::count_word(std::map<std::string, WordIndex>& dict, std::string &word, size_t doc_id) {
-    auto& entries = dict[word].index;
+void InvertedIndex::count_word(std::map<std::string, std::map<int,int>>& dict, std::string &word, size_t doc_id) {
+    auto& entries = dict[word];
     auto pair = entries.find(doc_id);
     if (pair == entries.end()) {
-        entries[doc_id] = Entry{static_cast<size_t>(doc_id), 1};
+        entries[doc_id] = 1;
     } else {
-        pair->second.count += 1;
+        pair->second += 1;
     }
 }
 
 template<typename StreamT>
-void InvertedIndex::index_doc(std::map<std::string, WordIndex>& dict, size_t doc_id, StreamT& stream) {
+void InvertedIndex::index_doc(std::map<std::string, std::map<int,int>>& dict, size_t doc_id, StreamT& stream) {
     std::string word;
     while (stream >> word) {
-        count_word(word, doc_id);
         auto parts = InvertedIndex::split_by_non_letters(word);
-        if (!parts.empty() && parts[0] != word) {
+        if (parts.empty()) {
+            count_word(dict, word, doc_id);
+        } else {
             for (auto& part : parts) count_word(dict, part, doc_id);
         }
         if (interrupt_indexation) return;
@@ -400,12 +404,10 @@ void InvertedIndex::index_doc(std::map<std::string, WordIndex>& dict, size_t doc
 
 template<typename StreamT>
 void InvertedIndex::independent_index_doc(size_t doc_id, StreamT& stream) {
-    std::map<std::string, WordIndex> dict;
+    std::map<std::string, std::map<int,int>> dict;
     index_doc(dict, doc_id, stream);
     if (interrupt_indexation) return;
-    freq_dict_access.lock();
-    merge_dict(freq_dictionary, dict);
-    freq_dict_access.unlock();
+    merge_dict(dict);
 }
 
 //// Save/load to/from file

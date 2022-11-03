@@ -139,18 +139,17 @@ private:
     void wait_for_indexation(bool interrupt = false);
 
     void rebase_doc_index(size_t old_id, size_t new_id);
-    void merge_dict(std::map<std::string, WordIndex>& destination, std::map<std::string, WordIndex>& source);
+    void merge_dict(std::map<std::string, std::map<int,int>>& source);
 
     void count_word(std::string& word, size_t doc_id);
-    void count_word(std::map<std::string, WordIndex>& dict, std::string& word, size_t doc_id);
+    void count_word(std::map<std::string, std::map<int,int>>& dict, std::string& word, size_t doc_id);
 
     template<typename StreamT>
     void index_doc(size_t doc_id, StreamT& stream);
     template<typename StreamT>
-    void index_doc(std::map<std::string, WordIndex>& dict, size_t doc_id, StreamT& stream);
+    void index_doc(std::map<std::string, std::map<int,int>>& dict, size_t doc_id, StreamT& stream);
     template<typename StreamT>
     void independent_index_doc(size_t doc_id, StreamT& stream);
-    void report_indexation_finish(const std::string& filename, const DocInfo& doc_info);
 
     int dump_num_size() const;
 
