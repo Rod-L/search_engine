@@ -362,41 +362,35 @@ void InvertedIndex::index_doc(size_t doc_id, StreamT& stream) {
 
 //// Indexation independent dicts method
 
-void InvertedIndex::merge_dict(std::map<std::string, std::map<int,int>>& source) {
+void InvertedIndex::merge_dict(size_t doc_id, std::map<std::string,int>& source) {
     freq_dict_access.lock();
     for (auto& pair : source) {
         auto& word_index = freq_dictionary[pair.first];
-        word_index.access.lock();
-        auto& index = word_index.index;
-        for (auto& entry : pair.second) {
-            auto& doc_index = index[static_cast<size_t>(entry.first)];
-            doc_index.doc_id = entry.first;
-            doc_index.count = entry.second;
-        }
-        word_index.access.unlock();
+        auto& doc_index = word_index.index[doc_id];
+        doc_index.doc_id = doc_id;
+        doc_index.count = pair.second;
     }
     freq_dict_access.unlock();
 }
 
-void InvertedIndex::count_word(std::map<std::string, std::map<int,int>>& dict, std::string &word, size_t doc_id) {
-    auto& entries = dict[word];
-    auto pair = entries.find(doc_id);
-    if (pair == entries.end()) {
-        entries[doc_id] = 1;
+void InvertedIndex::count_word(std::map<std::string,int>& dict, std::string &word) {
+    auto pair = dict.find(word);
+    if (pair == dict.end()) {
+        dict[word] = 1;
     } else {
         pair->second += 1;
     }
 }
 
 template<typename StreamT>
-void InvertedIndex::index_doc(std::map<std::string, std::map<int,int>>& dict, size_t doc_id, StreamT& stream) {
+void InvertedIndex::index_doc(std::map<std::string,int>& dict, StreamT& stream) {
     std::string word;
     while (stream >> word) {
         auto parts = InvertedIndex::split_by_non_letters(word);
         if (parts.empty()) {
-            count_word(dict, word, doc_id);
+            count_word(dict, word);
         } else {
-            for (auto& part : parts) count_word(dict, part, doc_id);
+            for (auto& part : parts) count_word(dict, part);
         }
         if (interrupt_indexation) return;
     }
@@ -404,10 +398,10 @@ void InvertedIndex::index_doc(std::map<std::string, std::map<int,int>>& dict, si
 
 template<typename StreamT>
 void InvertedIndex::independent_index_doc(size_t doc_id, StreamT& stream) {
-    std::map<std::string, std::map<int,int>> dict;
-    index_doc(dict, doc_id, stream);
+    std::map<std::string,int> dict;
+    index_doc(dict, stream);
     if (interrupt_indexation) return;
-    merge_dict(dict);
+    merge_dict(doc_id, dict);
 }
 
 //// Save/load to/from file
