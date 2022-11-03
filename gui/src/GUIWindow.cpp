@@ -575,7 +575,10 @@ void GUIWindow::revertConfigChanges() {
 
 void GUIWindow::openRecentConfig(int row, int column) {
     auto table = UI->tableRecentConfigs;
-    if (row < 0 && table_current_row(table, &row) < 0) return;
+    if (row < 0 && table_current_row(table, &row) < 0) {
+        selectAndOpenConfig();
+        return;
+    }
 
     auto cell = table->item(row, column);
     if (cell == nullptr) return;

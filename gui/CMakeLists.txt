@@ -6,6 +6,13 @@ set(GUI_PROJECT_NAME gui)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
+
+# include necessary libraries into executable
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-static")
+
+# Setup qt installation path, select necessary build system
 set(CMAKE_PREFIX_PATH "E:\\Qt5\\5.15.2\\mingw81_64\\lib\\cmake")
 
 add_executable(gui
@@ -17,8 +24,6 @@ add_executable(gui
         src/GUIWindow.cpp
         src/ProcessPipe.cpp
         include/GUIWindow.h)
-
-#set_property(TARGET gui PROPERTY WIN32_EXECUTABLE true)
 
 ##############################################
 # nlohmann_json
@@ -35,7 +40,6 @@ target_link_libraries(${GUI_PROJECT_NAME} PRIVATE cpr::cpr)
 ##############################################
 # Catch2 - uncomment for testing
 
-#enable_testing()
 add_subdirectory(tests)
 
 ############################################
@@ -56,6 +60,13 @@ target_link_libraries(${GUI_PROJECT_NAME} PUBLIC Qt5::Gui)
 target_link_libraries(${GUI_PROJECT_NAME} PUBLIC Qt5::Widgets)
 
 if (WIN32)
+    if (DEFINED CMAKE_PREFIX_PATH OR DEFINED QT_INSTALL_PATH)
+        MESSAGE(STATUS "QT_INSTALL_PATH set to${QT_INSTALL_PATH}")
+        MESSAGE(STATUS "CMAKE_PREFIX_PATH set to ${CMAKE_PREFIX_PATH}")
+    else()
+        MESSAGE(FATAL_ERROR "Neither CMAKE_PREFIX_PATH nor QT_INSTALL_PATH have been set. Unable to find Qt installation path.")
+    endif()
+
     set(DEBUG_SUFFIX)
     set(QT_INSTALL_PATH "${CMAKE_PREFIX_PATH}")
     if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
