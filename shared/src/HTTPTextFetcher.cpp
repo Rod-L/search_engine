@@ -17,13 +17,15 @@ bool HTTPFetcher::get_html(const std::string& http_link, std::stringstream& acce
 
 void HTTPFetcher::get_text(std::stringstream& html, std::stringstream& acceptor) {
     acceptor.str("");
+    std::string tag;
     std::string buf;
     while(true) {
-        std::getline(html, buf, '>');
-        if (buf.substr(0, 6) == "script" || buf.substr(0, 5) == "style") continue;
+        std::getline(html, tag, '>');
         html >> std::ws;
         std::getline(html, buf, '<');
         if (html.eof()) break;
+        tag.resize(6);
+        if (buf.empty() || tag == "script" || tag == "style ") continue;
         acceptor << buf << std::endl;
     }
 }

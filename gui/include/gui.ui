@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Skillbox search engine</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_4">
@@ -127,7 +127,7 @@
         <bool>true</bool>
        </property>
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <property name="elideMode">
         <enum>Qt::ElideNone</enum>
@@ -210,7 +210,7 @@
              <item>
               <widget class="QLabel" name="label">
                <property name="text">
-                <string>max_responses</string>
+                <string>Amount of search results to be written to &quot;answers.json&quot; file after request processed</string>
                </property>
               </widget>
              </item>
@@ -228,29 +228,6 @@
               </spacer>
              </item>
             </layout>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_tooltip1">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>Amount of search results to be written to &quot;aswers.json&quot; file after processing request</string>
-             </property>
-             <property name="wordWrap">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="Line" name="line_tooltip2">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
            </item>
            <item>
             <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -273,7 +250,7 @@
              <item>
               <widget class="QLabel" name="label_2">
                <property name="text">
-                <string>max_indexation_threads</string>
+                <string>Maximum amount of threads to use for files indexation</string>
                </property>
               </widget>
              </item>
@@ -293,114 +270,37 @@
             </layout>
            </item>
            <item>
-            <widget class="QLabel" name="label_tooltip2">
-             <property name="text">
-              <string>Maximum amount of threads to use for files indexation</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="Line" name="line_tooltip3">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-            </widget>
-           </item>
-           <item>
             <widget class="QCheckBox" name="checkBox_auto_dump_index">
              <property name="text">
-              <string>auto_dump_index</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_tooltip3">
-             <property name="text">
-              <string>Whether index should be saved automatically at end of work with configuration file</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="Line" name="line_tooltip4">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <string>Save index automatically at end of work with configuration</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QCheckBox" name="checkBox_auto_load_index_dump">
              <property name="text">
-              <string>auto_load_index_dump</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_tooltip4">
-             <property name="text">
-              <string>Whether to try to find and load previously saved index on configuration openning or not </string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="Line" name="line_tooltip5">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <string>Load previously saved index at configuration startup, if one exists</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QCheckBox" name="checkBox_auto_reindex">
              <property name="text">
-              <string>auto_reindex</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_tooltip5">
-             <property name="text">
-              <string>Whether indexation should start automatically on configuration openning, if none files in base are indexed</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="Line" name="line_tooltip6">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <string>Start full indexation automatically on configuration startup, if none files in base are indexed</string>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QCheckBox" name="checkBox_relative_to_config_folder">
              <property name="text">
-              <string>relative_to_config_folder</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_tooltip6">
-             <property name="text">
               <string>Relative file paths, listed in &quot;files&quot; section of  configuration file, are relative to configuration file directory</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="Line" name="line_tooltip7">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
              </property>
             </widget>
            </item>
            <item>
             <widget class="QCheckBox" name="checkBox_use_independent_dicts_method">
              <property name="text">
-              <string>use_independent_dicts_method</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_tooltip7">
-             <property name="text">
-              <string>Higher memory consumption, but more indexation threads available - better performance</string>
+              <string>Use an alternative indexing method: higher memory consumption, but the more indexing threads, the higher the performance.</string>
              </property>
             </widget>
            </item>
@@ -872,8 +772,14 @@
    <property name="checked">
     <bool>true</bool>
    </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="text">
     <string>Show tooltips</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
    </property>
   </action>
  </widget>
@@ -1176,22 +1082,6 @@
     <hint type="sourcelabel">
      <x>672</x>
      <y>262</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>506</x>
-     <y>307</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionShow_tooltip</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>toggleShowTooltips(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
     </hint>
     <hint type="destinationlabel">
      <x>506</x>
